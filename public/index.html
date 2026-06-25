@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0B0813">
+  <title>Amani AI - Instant Real-Time Translation</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap"
+    rel="stylesheet">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- Background Ambient Glows -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <!-- App Views Wrapper -->
+  <div class="views-wrapper">
+
+    <!-- ================= VIEW 1: AUTH SCREEN ================= -->
+    <section id="view-auth" class="app-view active">
+      <div class="auth-content">
+        <!-- App Logo (Glowing AI Communication Node) -->
+        <div class="logo-container">
+          <div class="logo-glow"></div>
+          <svg class="app-logo" width="80" height="80" viewBox="0 0 80 80" fill="none"
+            xmlns="http://www.w3.org/2000/svg">
+            <circle cx="40" cy="40" r="32" stroke="url(#logo-grad)" stroke-width="4" stroke-dasharray="12 6" />
+            <path d="M30 40C30 34.4772 34.4772 30 40 30C45.5228 30 50 34.4772 50 40C50 45.5228 45.5228 50 40 50"
+              stroke="url(#logo-grad-2)" stroke-width="4" stroke-linecap="round" />
+            <circle cx="40" cy="40" r="4" fill="#A855F7" />
+            <defs>
+              <linearGradient id="logo-grad" x1="8" y1="8" x2="72" y2="72" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#8B5CF6" />
+                <stop offset="1" stop-color="#EC4899" />
+              </linearGradient>
+              <linearGradient id="logo-grad-2" x1="30" y1="30" x2="50" y2="50" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#F43F5E" />
+                <stop offset="1" stop-color="#06B6D4" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <!-- Title & Tagline -->
+        <h1 class="app-title">Unity</h1>
+        <p class="app-tagline">Talk to anyone, in any language instantly</p>
+
+        <!-- Actions Wrapper -->
+        <div class="auth-actions">
+          <!-- Primary: Google Sign In -->
+          <button id="btn-google-login" class="btn btn-google">
+            <span class="btn-content">
+              <svg class="google-icon" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                xmlns="http://www.w3.org/2000/svg">
+                <path
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  fill="#4285F4" />
+                <path
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  fill="#34A853" />
+                <path
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22c-.87-2.6-2.87-4.53-5.84-4.53z"
+                  fill="#FBBC05" />
+                <path
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  fill="#EA4335" />
+              </svg>
+              Continue with Google
+            </span>
+            <!-- Loading State Spinner -->
+            <div class="loader-spinner hidden"></div>
+          </button>
+
+          <!-- Secondary: Apple Sign In -->
+          <button class="btn btn-secondary btn-apple">
+            <svg width="18" height="22" viewBox="0 0 18 22" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M15.45 10.95c.02-2.52 2.06-3.73 2.15-3.79-1.18-1.72-3.01-1.95-3.66-2.01-1.56-.16-3.05.92-3.84.92-.79 0-2.04-.9-3.37-.87-1.75.03-3.37 1.02-4.27 2.59-1.82 3.16-.47 7.82 1.3 10.37.86 1.25 1.88 2.65 3.23 2.6 1.3-.05 1.79-.84 3.36-.84s2.02.84 3.38.81c1.39-.03 2.28-1.26 3.13-2.5 1-.1.97-1.43 1.95-2.85 1.01-1.47 1.03-1.5 1.03-1.51-.02-.01-1.98-.76-1.96-3.08zM12.98 2.76c.7-1.07 1.17-2.55.94-4.02-1.27.05-2.81.84-3.72 1.9-1.53 1.76-1.39 3.27-1.39 3.27.14.02.28.02.43.02 1.14 0 2.58-.69 3.74-2.17z" />
+            </svg>
+            Continue with Apple
+          </button>
+
+          <!-- More Options accordion -->
+          <div class="more-options-wrapper">
+            <button id="btn-more-options" class="btn-text">More options</button>
+            <div id="email-login-panel" class="email-panel collapsed">
+              <input type="email" placeholder="Email address" class="input-field" />
+              <input type="password" placeholder="Password" class="input-field" />
+              <button class="btn btn-primary btn-small">Continue with Email</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer terms -->
+        <p class="auth-footer">By continuing, you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+        </p>
+      </div>
+    </section>
+
+
+    <!-- ================= VIEW 2: HOME SCREEN ================= -->
+    <section id="view-home" class="app-view">
+      <!-- Header Bar -->
+      <header class="app-header">
+        <div class="header-left">
+          <h2 id="home-title" class="header-greeting">Chats</h2>
+          <p id="home-subtitle" class="header-subtitle">You're ready to communicate instantly</p>
+        </div>
+        <!-- Menu Trigger Button -->
+        <button id="btn-header-profile" class="btn-icon-only" aria-label="Menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+      </header>
+
+      <!-- Tab 1: Chats (Active) -->
+      <div id="tab-content-chats" class="home-tab-content active">
+        <div class="home-scroll-content">
+          <!-- Main CTA (Start Conversation) -->
+          <div class="main-cta-container">
+            <button id="btn-start-conv" class="btn-giant-cta">
+              <div class="cta-pulse-ring-1"></div>
+              <div class="cta-pulse-ring-2"></div>
+              <div class="cta-inner">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                  <line x1="12" x2="12" y1="19" y2="22" />
+                </svg>
+              </div>
+            </button>
+            <h3 class="cta-title">Start a Conversation</h3>
+            <p class="cta-subtitle">Tap to translate voice in real-time</p>
+          </div>
+
+          <!-- Recent Conversations Section -->
+          <div class="conversations-section">
+            <h4 class="section-title">Recent Conversations</h4>
+            <div class="conv-list">
+
+              <div class="conv-card clickable-card">
+                <div class="conv-avatar">
+                  <img
+                    src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&h=100&q=80"
+                    alt="Sophia" />
+                  <span class="lang-flag">🇪🇸</span>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-header">
+                    <span class="conv-name">Sophia Martinez</span>
+                    <span class="conv-time">2m ago</span>
+                  </div>
+                  <p class="conv-preview">English ⇄ Spanish (Active)</p>
+                </div>
+                <div class="conv-arrow">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="conv-card clickable-card">
+                <div class="conv-avatar">
+                  <img
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&h=100&q=80"
+                    alt="Kenji" />
+                  <span class="lang-flag">🇯🇵</span>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-header">
+                    <span class="conv-name">Kenji Sato</span>
+                    <span class="conv-time">1h ago</span>
+                  </div>
+                  <p class="conv-preview">English ⇄ Japanese</p>
+                </div>
+                <div class="conv-arrow">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+              </div>
+
+              <div class="conv-card clickable-card">
+                <div class="conv-avatar">
+                  <img
+                    src="https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=100&h=100&q=80"
+                    alt="Amara" />
+                  <span class="lang-flag">🇰🇪</span>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-header">
+                    <span class="conv-name">Amara Okoro</span>
+                    <span class="conv-time">Yesterday</span>
+                  </div>
+                  <p class="conv-preview">English ⇄ Swahili</p>
+                </div>
+                <div class="conv-arrow">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Groups -->
+      <div id="tab-content-groups" class="home-tab-content">
+        <div class="home-scroll-content">
+          <!-- Create Group CTA Card -->
+          <div class="groups-cta-card clickable-card">
+            <div class="groups-cta-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div class="groups-cta-info">
+              <span class="groups-cta-title">Create Translation Group</span>
+              <span class="groups-cta-desc">Translate conversations with up to 100 people</span>
+            </div>
+            <div class="groups-cta-add">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Group List -->
+          <div class="groups-section">
+            <h4 class="section-title">Active Groups</h4>
+            <div class="conv-list">
+              <!-- Group 1 -->
+              <div class="conv-card clickable-card">
+                <div class="conv-avatar group-avatar">
+                  <div class="group-avatar-initials">GL</div>
+                  <span class="lang-flag-multi">🌍</span>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-header">
+                    <span class="conv-name">Global Chat Lounge</span>
+                    <span class="conv-time">Just now</span>
+                  </div>
+                  <p class="conv-preview"><strong class="preview-author">Sophia:</strong> Hey everyone, welcome!</p>
+                </div>
+              </div>
+              <!-- Group 2 -->
+              <div class="conv-card clickable-card">
+                <div class="conv-avatar group-avatar">
+                  <div class="group-avatar-initials">ES</div>
+                  <span class="lang-flag-multi">🇪🇸🇬🇧</span>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-header">
+                    <span class="conv-name">Euro Summit Prep</span>
+                    <span class="conv-time">3h ago</span>
+                  </div>
+                  <p class="conv-preview"><strong class="preview-author">Mateo:</strong> El documento está listo.</p>
+                </div>
+              </div>
+              <!-- Group 3 -->
+              <div class="conv-card clickable-card">
+                <div class="conv-avatar group-avatar">
+                  <div class="group-avatar-initials">FT</div>
+                  <span class="lang-flag-multi">🤝</span>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-header">
+                    <span class="conv-name">Family Trip 2026</span>
+                    <span class="conv-time">2 days ago</span>
+                  </div>
+                  <p class="conv-preview"><strong class="preview-author">Mom:</strong> We should book the tour.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Calls -->
+      <div id="tab-content-calls" class="home-tab-content">
+        <div class="home-scroll-content">
+          <!-- Quick Call Options -->
+          <div class="groups-cta-card clickable-card">
+            <div class="groups-cta-icon calls-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path
+                  d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+            </div>
+            <div class="groups-cta-info">
+              <span class="groups-cta-title">Start Voice Call</span>
+              <span class="groups-cta-desc">Call any contact with live voice translation</span>
+            </div>
+          </div>
+
+          <!-- Calls List -->
+          <div class="groups-section">
+            <h4 class="section-title">Recent Voice Translations</h4>
+            <div class="conv-list">
+              <!-- Call 1 -->
+              <div class="conv-card clickable-card">
+                <div class="conv-avatar">
+                  <img
+                    src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&h=100&q=80"
+                    alt="Sophia" />
+                  <span class="call-type-indicator outgoing">↗</span>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-header">
+                    <span class="conv-name">Sophia Martinez</span>
+                    <span class="conv-time">10m ago</span>
+                  </div>
+                  <p class="conv-preview call-preview">Outgoing translation call • 4m 12s</p>
+                </div>
+              </div>
+              <!-- Call 2 -->
+              <div class="conv-card clickable-card">
+                <div class="conv-avatar">
+                  <img
+                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&h=100&q=80"
+                    alt="Kenji" />
+                  <span class="call-type-indicator incoming">↙</span>
+                </div>
+                <div class="conv-info">
+                  <div class="conv-header">
+                    <span class="conv-name">Kenji Sato</span>
+                    <span class="conv-time">Yesterday</span>
+                  </div>
+                  <p class="conv-preview call-preview">Incoming translation call • 12m 40s</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Floating Sheet Trigger: Onboarding Prompt (Non-blocking) -->
+      <div id="onboarding-prompt" class="onboarding-prompt-card">
+        <div class="onboarding-prompt-header">
+          <div class="prompt-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#star-grad)" stroke-width="2">
+              <polygon
+                points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+            <defs>
+              <linearGradient id="star-grad" x1="2" y1="2" x2="22" y2="22">
+                <stop stop-color="#C084FC" />
+                <stop offset="1" stop-color="#818CF8" />
+              </linearGradient>
+            </defs>
+          </div>
+          <div class="prompt-details">
+            <span class="prompt-title">Complete your profile</span>
+            <span class="prompt-progress-text"><span id="profile-percent">35%</span> completed</span>
+          </div>
+          <button id="btn-close-prompt" class="btn-close-mini">&times;</button>
+        </div>
+        <div class="progress-bar-container">
+          <div id="profile-progress-bar" class="progress-bar-fill" style="width: 35%"></div>
+        </div>
+        <div class="prompt-options">
+          <button class="prompt-option-pill" data-target="languages">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m5 8 6 6 6-6" />
+            </svg>
+            Add languages
+          </button>
+          <button class="prompt-option-pill" data-target="voice">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            </svg>
+            Set up voice
+          </button>
+          <button class="prompt-option-pill highlight-pill" data-target="profile">
+            Complete profile
+          </button>
+        </div>
+      </div>
+
+      <!-- BOTTOM APP TAB BAR -->
+      <nav class="app-tab-nav">
+        <button class="tab-nav-btn active" data-tab="chats">
+          <div class="tab-icon-wrapper">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <span class="tab-label">Chats</span>
+        </button>
+        <button class="tab-nav-btn" data-tab="groups">
+          <div class="tab-icon-wrapper">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <span class="tab-label">Groups</span>
+        </button>
+        <button class="tab-nav-btn" data-tab="calls">
+          <div class="tab-icon-wrapper">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+          </div>
+          <span class="tab-label">Calls</span>
+        </button>
+      </nav>
+    </section>
+
+
+    <!-- ================= VIEW 3: CONVERSATION WORKSPACE ================= -->
+    <section id="view-conversation" class="app-view">
+      <div class="conv-view-header">
+        <button id="btn-conv-back" class="btn-back">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+            stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12" />
+            <polyline points="12 19 5 12 12 5" />
+          </svg>
+        </button>
+        <div class="active-partner-info">
+          <span id="active-partner-name" class="partner-name">Sophia Martinez</span>
+          <span id="active-partner-status" class="partner-status">Connected 🟢</span>
+        </div>
+        <div class="header-partner-avatar-container">
+          <img id="active-partner-avatar" class="partner-header-avatar" src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&h=100&q=80" alt="Partner" />
+        </div>
+      </div>
+
+      <!-- Live Translation Chat Log (Hidden by default, shown only if Enable Chat Text Transcripts is checked) -->
+      <div id="chat-log" class="chat-log-container hidden">
+        <div class="chat-system-msg">
+          <span>English ⇄ Spanish translation active</span>
+        </div>
+
+        <div class="chat-bubble partner">
+          <div class="bubble-avatar">🇪🇸</div>
+          <div class="bubble-text-wrapper">
+            <div class="bubble-header">
+              <span class="bubble-sender-name">Sophia Martinez</span>
+              <span class="bubble-meta-info">🇪🇸 Spanish (Spain)</span>
+            </div>
+            <div class="bubble-body">
+              <p class="bubble-text">Hola, ¿cómo puedo ayudarte hoy con la traducción?</p>
+              <div class="translation-divider"></div>
+              <p class="translated-text">Hello, how can I help you with translation today?</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic conversation bubbles will be appended here -->
+      </div>
+
+      <!-- ChatGPT-style Voice Mode Call Overlay (Active by default) -->
+      <div id="voice-call-overlay" class="voice-call-overlay-container">
+        <!-- Real-time dynamic one-line subtitles at the top -->
+        <div id="realtime-subtitles" class="realtime-subtitles-box">
+          <div id="subtitle-received" class="subtitle-line received-line">Waiting for speech...</div>
+          <div id="subtitle-user" class="subtitle-line user-line">Tap mic to start talking</div>
+        </div>
+
+        <!-- Center Glowing Interactive Orb -->
+        <div class="voice-orb-wrapper">
+          <div class="voice-orb-glow-outer"></div>
+          <div class="voice-orb-glow-middle"></div>
+          <div id="voice-orb-bubble" class="voice-orb-center">
+            <div class="orb-fluid-wave wave-cyan"></div>
+            <div class="orb-fluid-wave wave-blue"></div>
+            <div class="orb-fluid-wave wave-indigo"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dynamic Audio Visualization Waveform -->
+      <div id="waveform-container" class="waveform-container hidden">
+        <div class="wave-bar bar-1"></div>
+        <div class="wave-bar bar-2"></div>
+        <div class="wave-bar bar-3"></div>
+        <div class="wave-bar bar-4"></div>
+        <div class="wave-bar bar-5"></div>
+        <div class="wave-bar bar-6"></div>
+        <div class="wave-bar bar-7"></div>
+        <div class="wave-bar bar-8"></div>
+        <div class="wave-bar bar-9"></div>
+        <div class="wave-bar bar-10"></div>
+      </div>
+
+      <!-- Bottom Control Bar -->
+      <div class="conv-controls">
+        <!-- Text Typing Bar (Hidden by default) -->
+        <div id="keyboard-input-bar" class="keyboard-input-bar-container hidden">
+          <input type="text" id="keyboard-text-input" placeholder="Type translated message..." class="keyboard-input-field" />
+          <button id="btn-send-text" class="btn-send-message">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Mute/Keyboard Toggles (Voice controls) -->
+        <div id="voice-controls-wrapper" class="voice-controls-flex-wrapper">
+          <button id="btn-mic-toggle" class="btn-control-circle active">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+            </svg>
+          </button>
+          <div id="voice-status-label" class="mic-status-label">Listening...</div>
+        </div>
+
+        <button id="btn-keyboard-toggle" class="btn-control-circle">
+          <svg id="keyboard-toggle-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="12" rx="2" />
+            <path d="M7 8h10M7 12h10M10 16h4" />
+          </svg>
+        </button>
+      </div>
+    </section>
+
+  </div> <!-- End App Views Wrapper -->
+
+
+  <!-- ================= COMPONENT: PROFILE SETTINGS SHEET (Slide Up) ================= -->
+  <div id="profile-sheet" class="bottom-sheet">
+    <div class="sheet-overlay"></div>
+    <div class="sheet-content">
+      <!-- Drag Handle -->
+      <div class="sheet-drag-handle"></div>
+
+      <!-- Header -->
+      <div class="sheet-header">
+        <h3 class="sheet-title">Profile Settings</h3>
+        <!-- Auto-save notification pill -->
+        <div id="autosave-pill" class="autosave-indicator">
+          <span class="save-dot"></span>
+          <span class="save-text">Saved</span>
+        </div>
+        <button id="btn-close-sheet" class="btn-close">&times;</button>
+      </div>
+
+      <!-- Scrollable Fields Form -->
+      <div class="sheet-body">
+
+        <!-- Profile Image Setup -->
+        <div class="avatar-setup-section">
+          <div class="avatar-preview-container">
+            <img id="profile-avatar-preview"
+              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80"
+              alt="Avatar" />
+            <button class="btn-edit-avatar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                  d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5M21 3l-9.9 9.9L7 14.3l1.4-4.1L18.3 3.1z" />
+              </svg>
+            </button>
+          </div>
+          <div class="avatar-presets">
+            <img class="avatar-preset-item selected"
+              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&h=100&q=80"
+              data-avatar="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80" />
+            <img class="avatar-preset-item"
+              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&h=100&q=80"
+              data-avatar="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80" />
+            <img class="avatar-preset-item"
+              src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=100&h=100&q=80"
+              data-avatar="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=150&h=150&q=80" />
+            <img class="avatar-preset-item"
+              src="https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=100&h=100&q=80"
+              data-avatar="https://images.unsplash.com/photo-1488426862026-3ee34a7d66df?auto=format&fit=crop&w=150&h=150&q=80" />
+          </div>
+        </div>
+
+        <!-- Profile Info Form Fields -->
+        <form id="profile-form" onsubmit="event.preventDefault();">
+
+          <!-- Display Name -->
+          <div class="form-group">
+            <label for="profile-name" class="form-label">Display Name</label>
+            <input type="text" id="profile-name" class="input-field" placeholder="Enter your name" value="Amani User" />
+          </div>
+
+          <!-- Native Language -->
+          <div class="form-group">
+            <label for="native-lang" class="form-label">Native Language</label>
+            <div class="select-wrapper">
+              <select id="native-lang" class="select-field">
+                <option value="en" selected>English 🇺🇸</option>
+                <option value="es">Spanish 🇪🇸</option>
+                <option value="fr">French 🇫🇷</option>
+                <option value="sw">Swahili 🇰🇪</option>
+                <option value="ja">Japanese 🇯🇵</option>
+                <option value="de">German 🇩🇪</option>
+                <option value="zh">Chinese 🇨🇳</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Secondary Languages -->
+          <div class="form-group">
+            <label class="form-label">Secondary Languages (To Translate)</label>
+            <div class="pills-selection">
+              <label class="pill-checkbox">
+                <input type="checkbox" name="secondary_langs" value="es" checked />
+                <span class="pill-label">Spanish 🇪🇸</span>
+              </label>
+              <label class="pill-checkbox">
+                <input type="checkbox" name="secondary_langs" value="ja" checked />
+                <span class="pill-label">Japanese 🇯🇵</span>
+              </label>
+              <label class="pill-checkbox">
+                <input type="checkbox" name="secondary_langs" value="sw" />
+                <span class="pill-label">Swahili 🇰🇪</span>
+              </label>
+              <label class="pill-checkbox">
+                <input type="checkbox" name="secondary_langs" value="fr" />
+                <span class="pill-label">French 🇫🇷</span>
+              </label>
+              <label class="pill-checkbox">
+                <input type="checkbox" name="secondary_langs" value="de" />
+                <span class="pill-label">German 🇩🇪</span>
+              </label>
+              <label class="pill-checkbox">
+                <input type="checkbox" name="secondary_langs" value="zh" />
+                <span class="pill-label">Chinese 🇨🇳</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Voice Setup Section -->
+          <div class="form-group">
+            <label for="voice-mic-select" class="form-label">Voice & Microphone Setup</label>
+            <div class="select-wrapper">
+              <select id="voice-mic-select" class="select-field">
+                <option value="default">Default Device Microphone</option>
+                <option value="headset">Bluetooth Headset Mic</option>
+                <option value="internal">Built-in Stereo Mic</option>
+              </select>
+            </div>
+            <div class="voice-test-row">
+              <button id="btn-test-mic" class="btn btn-secondary btn-small">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                </svg>
+                Test Microphone
+              </button>
+              <div id="mic-test-wave" class="test-wave-container hidden">
+                <span class="test-bar tb-1"></span>
+                <span class="test-bar tb-2"></span>
+                <span class="test-bar tb-3"></span>
+                <span class="test-bar tb-4"></span>
+                <span class="test-bar tb-5"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preferences -->
+          <div class="form-group">
+            <label class="form-label">Preferences</label>
+            <div class="toggle-list">
+              <div class="toggle-item">
+                <span class="toggle-name">Dark Theme Mode</span>
+                <label class="switch">
+                  <input type="checkbox" id="pref-dark-theme" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-name">Auto-translate Incoming Voice</span>
+                <label class="switch">
+                  <input type="checkbox" id="pref-auto-trans" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-name">Haptic Feedback on Mic Activation</span>
+                <label class="switch">
+                  <input type="checkbox" id="pref-haptics" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-name">Voice Activation Detection (VAD)</span>
+                <label class="switch">
+                  <input type="checkbox" id="pref-vad" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-item">
+                <span class="toggle-name">Enable Chat Text Transcripts</span>
+                <label class="switch">
+                  <input type="checkbox" id="pref-show-transcripts" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="sheet-footer">
+            <span class="footer-save-message">✅ All changes are saved automatically</span>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div> <!-- End Profile Settings Sheet -->
+
+
+
+  <!-- App Main Logic Script -->
+  <script src="app.js"></script>
+</body>
+
+</html>
