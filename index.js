@@ -14,6 +14,27 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const pushTokens = new Map();
+
+async function sendPushNotification(expoPushToken, title, body, data = {}) {
+  try {
+    await axios.post('https://exp.host/--/api/v2/push/send', {
+      to: expoPushToken,
+      sound: 'default',
+      title,
+      body,
+      data
+    }, {
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      }
+    });
+  } catch (error) {
+    console.error('Error sending push notification:', error.message);
+  }
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -40,7 +61,7 @@ const INITIAL_POSTS = [
     flag: '🇺🇸',
     time: '2 hours ago',
     content: 'Just arrived in Tokyo! The translation app has been a lifesaver for ordering food and finding my hotel. Highly recommend it! 🗼🇯🇵',
-    imageUrl: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=600&q=80',
+    imageUrls: ['https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=600&q=80'],
     likes: 24,
     likedBy: [],
     comments: [
@@ -59,7 +80,7 @@ const INITIAL_POSTS = [
     flag: '🇪🇸',
     time: '4 hours ago',
     content: 'Preparando la presentación para la cumbre europea de mañana. Gracias a Dios por la traducción de documentos en tiempo real de Unity, me ahorró horas de trabajo duro. 💼🇪🇺',
-    imageUrl: '',
+    imageUrls: [],
     likes: 12,
     likedBy: [],
     comments: [
@@ -143,8 +164,8 @@ const postSchema = new mongoose.Schema(
     authorFlag: { type: String, default: '🌍' },
     authorNativeLang: { type: String, default: '' },
     content: { type: String, default: '' },
-    imageUrl: { type: String, default: '' },
-    imageFileId: { type: String, default: '' },
+    imageUrls: { type: [String], default: [] },
+    imageFileIds: { type: [String], default: [] },
     likes: { type: Number, default: 0 },
     likedBy: { type: [String], default: [] },
     comments: { type: [commentSchema], default: [] },
@@ -195,8 +216,7 @@ function normalizePost(post, userKey = '') {
     flag: post.authorFlag || '🌍',
     time: formatTimeAgo(post.createdAt || post.timestamp || Date.now()),
     content: post.content || '',
-    imageUrl: post.imageUrl || '',
-    image: post.imageUrl || '',
+    images: post.imageUrls?.length > 0 ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : []),
     likes: Number(post.likes || 0),
     liked,
     comments,
@@ -251,6 +271,45 @@ async function deleteMemoryPost(postId) {
   }
   return null;
 }
+
+app.post('/api/register-push', (req, res) => {
+  const { userKey, token } = req.body;
+  if (userKey && token) {
+    pushTokens.set(userKey, token);
+  }
+  res.json({ success: true });
+});
+
+app.post('/api/simulate-notification', async (req, res) => {
+  const { userKey, type, name } = req.body;
+  const token = pushTokens.get(userKey);
+  if (!token) return res.status(404).json({ error: 'No push token found' });
+  
+  let title = 'Notification';
+  let body = 'You have a new notification';
+  
+  switch (type) {
+    case 'missed_call':
+      title = 'Missed Call';
+      body = `Missed call from ${name || 'someone'}`;
+      break;
+    case 'call_request':
+      title = 'Incoming Call';
+      body = `You have a call request from ${name || 'someone'}`;
+      break;
+    case 'getting_online':
+      title = 'Contact Online';
+      body = `${name || 'Someone'} from your contacts is getting online`;
+      break;
+    case 'waiting_answer':
+      title = 'Waiting for Answer';
+      body = `${name || 'Someone'} is waiting for answer if you're online`;
+      break;
+  }
+  
+  await sendPushNotification(token, title, body);
+  res.json({ success: true });
+});
 
 // Translate text endpoint
 app.post('/api/translate', async (req, res) => {
@@ -357,6 +416,102 @@ app.post('/api/translate-voice', upload.single('audio'), async (req, res) => {
   }
 });
 
+// AI Chat companion endpoint
+app.post('/api/chat', async (req, res) => {
+  const { message, language, history = [], userKey } = req.body;
+  
+  // Also accept text/targetLang for backward compatibility
+  const text = message || req.body.text;
+  const targetLang = language || req.body.targetLang;
+
+  if (!text || !targetLang) {
+    return res.status(400).json({ error: 'Missing text/message or targetLang/language' });
+  }
+
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
+    return res.status(500).json({ error: 'Gemini API Key is not configured on the server.' });
+  }
+
+  try {
+    // Convert history format to Gemini format if provided
+    const formattedHistory = history.map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'model',
+      parts: [{ text: msg.text }]
+    }));
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+      {
+        contents: [
+          ...formattedHistory,
+          {
+            role: 'user',
+            parts: [
+              {
+                text: `You are a friendly, conversational AI companion in a language learning and translation app. Respond naturally to the user's message in "${targetLang}". Do NOT translate the user's message, just reply to it as a chat partner would. User message: "${text}"`,
+              },
+            ],
+          },
+        ],
+      },
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+
+    const replyText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    
+    // Send push notification if token exists
+    if (userKey) {
+      const token = pushTokens.get(userKey);
+      if (token) {
+        await sendPushNotification(token, 'New Message', `Incoming message from ${targetLang} partner`);
+      }
+    }
+
+    res.json({ replyText });
+  } catch (error) {
+    const upstreamStatus = error.response?.status || 500;
+    const upstreamMessage = error.response?.data?.error?.message || error.message;
+    console.error('Chat error:', error.response?.data || error.message);
+    res.status(upstreamStatus >= 400 && upstreamStatus < 500 ? 502 : 500).json({
+      error: 'Failed to generate chat response.',
+      details: upstreamMessage,
+    });
+  }
+});
+
+// Contacts endpoints
+app.post('/api/check-contacts', (req, res) => {
+  try {
+    const { phoneNumbers = [] } = req.body;
+    
+    if (!Array.isArray(phoneNumbers)) {
+      return res.status(400).json({ error: 'phoneNumbers must be an array' });
+    }
+
+    // Mock implementation for prototype:
+    // Determine if a user exists deterministically based on their phone number string length or characters
+    // E.g., if phone number contains a '5' or ends in an even digit, we say they exist.
+    const results = phoneNumbers.map((phone) => {
+      // Remove all non-numeric characters for check
+      const digits = phone.replace(/\D/g, '');
+      const lastDigit = parseInt(digits.slice(-1) || '0', 10);
+      
+      const hasAccount = lastDigit % 2 === 0;
+
+      return {
+        phone,
+        hasUnityAccount: hasAccount
+      };
+    });
+
+    res.json({ contacts: results });
+  } catch (error) {
+    console.error('Check contacts error:', error);
+    res.status(500).json({ error: 'Failed to check contacts.' });
+  }
+});
+
 // Post feed endpoints
 app.get('/api/posts', async (req, res) => {
   try {
@@ -369,7 +524,7 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
-app.post('/api/posts', upload.single('image'), async (req, res) => {
+app.post('/api/posts', upload.array('images', 10), async (req, res) => {
   try {
     const {
       content,
@@ -378,21 +533,36 @@ app.post('/api/posts', upload.single('image'), async (req, res) => {
       authorAvatar = '',
       authorFlag = '🌍',
       authorNativeLang = '',
-      imageUrl = '',
+      imageUrls = '[]',
     } = req.body;
 
     if (!content || !content.trim()) {
       return res.status(400).json({ error: 'Missing content' });
     }
 
-    let finalImageUrl = imageUrl || '';
-    let imageFileId = '';
-    if (req.file) {
+    let parsedImageUrls = [];
+    try {
+      parsedImageUrls = JSON.parse(imageUrls);
+    } catch (e) {
+      if (typeof imageUrls === 'string' && imageUrls.trim()) {
+        parsedImageUrls = [imageUrls];
+      }
+    }
+
+    let finalImageUrls = [...parsedImageUrls];
+    let imageFileIds = [];
+    
+    if (req.files && req.files.length > 0) {
       if (!imagekit) {
         return res.status(503).json({ error: 'ImageKit is not configured on the server.' });
       }
-      finalImageUrl = await uploadImageToImageKit(req.file);
-      imageFileId = finalImageUrl;
+      for (const file of req.files) {
+        const url = await uploadImageToImageKit(file);
+        if (url) {
+          finalImageUrls.push(url);
+          imageFileIds.push(url); // simplified
+        }
+      }
     }
 
     const newDoc = {
@@ -403,8 +573,8 @@ app.post('/api/posts', upload.single('image'), async (req, res) => {
       authorFlag,
       authorNativeLang,
       content: content.trim(),
-      imageUrl: finalImageUrl,
-      imageFileId,
+      imageUrls: finalImageUrls,
+      imageFileIds: imageFileIds,
       likes: 0,
       likedBy: [],
       comments: [],
@@ -575,6 +745,66 @@ app.post('/api/backup', async (req, res) => {
     console.error('Backup error:', err);
     res.status(500).json({ error: 'Failed to write backup data' });
   }
+});
+// --- Admin Analytics & Tracking ---
+let adminLogQueue = [];
+let adminClients = [];
+
+app.post('/api/track', (req, res) => {
+  try {
+    const { event, user, details } = req.body;
+    const logEntry = {
+      id: Date.now().toString(),
+      timestamp: new Date().toISOString(),
+      event: event || 'unknown',
+      user: user || 'Anonymous',
+      details: details || {}
+    };
+    
+    adminLogQueue.unshift(logEntry);
+    if (adminLogQueue.length > 500) {
+      adminLogQueue.pop(); // Keep only last 500
+    }
+
+    // Broadcast to SSE clients
+    adminClients.forEach(client => {
+      client.write(`data: ${JSON.stringify(logEntry)}\n\n`);
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to track event' });
+  }
+});
+
+app.get('/api/admin/stats', (req, res) => {
+  // Simple mock metrics for now, or you could count unique users seen today
+  res.json({
+    totalRegistered: 1248, // Or however you track this
+    totalOnline: Math.floor(Math.random() * 50) + 10 // Mock dynamic number
+  });
+});
+
+app.get('/api/admin/logs/stream', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Send recent history upon connect
+  const history = [...adminLogQueue].reverse(); // send oldest first to newest
+  res.write(`data: ${JSON.stringify({ type: 'history', logs: history })}\n\n`);
+
+  adminClients.push(res);
+
+  req.on('close', () => {
+    adminClients = adminClients.filter(client => client !== res);
+  });
+});
+
+// Serve admin dashboard
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
 });
 
 app.listen(PORT, () => {

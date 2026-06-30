@@ -1,0 +1,6 @@
+{"_e":"root:init","_t":1782756766082,"format":"v0-jsonl","version":"56.1.16"}
+{"_e":"env:mode","_t":1782756766087,"nodeEnv":"development","babelEnv":"development","mode":"development"}
+{"_e":"env:load","_t":1782756766110,"mode":"development","files":["../..\\..\\.env"],"env":{"GEMINI_API_KEY":"AIzaSyAGN-fgjIaTAFJYcvBO7DjY14gOftBIOpE","IMAGEKIT_PRIVATE_KEY":"private_MIragFZvG4TpHUadrNTxBak5Q8Q=","IMAGEKIT_PUBLIC_KEY":"public_uoxdrSkNrHde4QDcxAiU32cMEGc=","IMAGEKIT_URL_ENDPOINT":"https://ik.imagekit.io/amanikbt1","MONGODB_URI":"mongodb+srv://Amani:amani@cluster0.wlukssp.mongodb.net/?appName=Cluster0","PORT":"3000"}}
+{"_e":"devserver:start","_t":1782756897461,"mode":"development","web":true,"baseUrl":"","asyncRoutes":false,"routerRoot":"../..\\..\\app","serverComponents":false,"serverActions":false,"serverRendering":false,"apiRoutes":false,"exporting":false}
+{"_e":"metro:config","_t":1782756901880,"serverRoot":"../..\\..","projectRoot":"../..\\..","exporting":false,"flags":{"autolinkingModuleResolution":false,"serverActions":false,"serverComponents":false,"reactCompiler":false,"optimizeGraph":false,"treeshaking":false,"logbox":false}}
+{"_e":"metro:instantiate","_t":1782756975287,"atlas":false,"workers":3,"host":"::","port":8082}

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unity App - Admin Dashboard</title>
+  <style>
+    :root {
+      --bg: #0A0612;
+      --card-bg: #120C24;
+      --border: rgba(255, 255, 255, 0.07);
+      --text: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --primary: #8B5CF6;
+      --accent: #06B6D4;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 20px 40px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+      background: -webkit-linear-gradient(45deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .metrics {
+      display: flex;
+      gap: 20px;
+      padding: 30px 40px;
+    }
+    .metric-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+    }
+    .metric-title {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .metric-value {
+      font-size: 48px;
+      font-weight: 700;
+      margin-top: 10px;
+      color: var(--primary);
+    }
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 0 40px 40px 40px;
+    }
+    .terminal-header {
+      background: #1A1B26;
+      padding: 10px 20px;
+      border-top-left-radius: 12px;
+      border-top-right-radius: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--border);
+      border-bottom: none;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    .dot.red { background-color: #F87171; }
+    .dot.yellow { background-color: #FBBF24; }
+    .dot.green { background-color: #34D399; }
+    .terminal-title {
+      margin-left: 10px;
+      font-family: monospace;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .terminal {
+      background: #1A1B26;
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      font-family: 'Fira Code', 'Courier New', Courier, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .log-entry {
+      margin-bottom: 8px;
+      border-bottom: 1px dashed rgba(255,255,255,0.1);
+      padding-bottom: 8px;
+    }
+    .log-time { color: #565F89; }
+    .log-user { color: #7DCFFF; font-weight: bold; }
+    .log-event { color: #9ECE6A; font-weight: bold; }
+    .log-details { color: #C0CAF5; margin-left: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Unity Admin Dashboard</h1>
+    <div style="color: var(--text-muted); font-size: 14px;">Live Live-Tracker Active</div>
+  </header>
+
+  <div class="metrics">
+    <div class="metric-card">
+      <div class="metric-title">Total Registered Users</div>
+      <div class="metric-value" id="stat-registered">--</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-title">Currently Online</div>
+      <div class="metric-value" id="stat-online" style="color: var(--accent);">--</div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="terminal-header">
+      <div class="dot red"></div>
+      <div class="dot yellow"></div>
+      <div class="dot green"></div>
+      <div class="terminal-title">bash - app-activity.log</div>
+    </div>
+    <div class="terminal" id="terminal">
+      <div style="color: #9ECE6A;">[System] Listening for incoming app events...</div>
+    </div>
+  </div>
+
+  <script>
+    // Fetch initial stats
+    async function fetchStats() {
+      try {
+        const res = await fetch('/api/admin/stats');
+        const data = await res.json();
+        document.getElementById('stat-registered').innerText = data.totalRegistered;
+        document.getElementById('stat-online').innerText = data.totalOnline;
+      } catch (err) {
+        console.error('Failed to fetch stats', err);
+      }
+    }
+    fetchStats();
+    setInterval(fetchStats, 10000); // refresh every 10s
+
+    const terminal = document.getElementById('terminal');
+
+    function appendLog(log) {
+      const el = document.createElement('div');
+      el.className = 'log-entry';
+      const time = new Date(log.timestamp).toLocaleTimeString();
+      const detailsStr = typeof log.details === 'object' ? JSON.stringify(log.details) : log.details;
+      
+      el.innerHTML = `
+        <span class="log-time">[${time}]</span>
+        <span class="log-user">${log.user}</span>
+        <span class="log-event">${log.event}</span>
+        <span class="log-details">${detailsStr !== '{}' ? detailsStr : ''}</span>
+      `;
+      terminal.appendChild(el);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    // Connect to SSE stream
+    const evtSource = new EventSource('/api/admin/logs/stream');
+    evtSource.onmessage = function(event) {
+      const data = JSON.parse(event.data);
+      if (data.type === 'history') {
+        data.logs.forEach(appendLog);
+      } else {
+        appendLog(data);
+      }
+    };
+    evtSource.onerror = function(err) {
+      console.error("EventSource failed:", err);
+    };
+  </script>
+</body>
+</html>
