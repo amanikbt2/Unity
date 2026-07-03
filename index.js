@@ -39,6 +39,49 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
+// Initialize API Key Pool
+let currentKeyIndex = 0;
+const keyPoolStr = process.env.GEMINI_KEY_POOL || process.env.GEMINI_API_KEY || '';
+const API_KEY_POOL = keyPoolStr.split(',').map(k => k.trim()).filter(Boolean);
+
+async function callGeminiWithRotation(payload) {
+  if (API_KEY_POOL.length === 0) {
+    throw new Error('No Gemini API keys configured on the server.');
+  }
+
+  let attempt = 0;
+  let lastError = null;
+
+  // Try up to the total number of keys we have before failing entirely
+  while (attempt < API_KEY_POOL.length) {
+    const currentKey = API_KEY_POOL[currentKeyIndex];
+    try {
+      console.log(`[API Pool] Using key index ${currentKeyIndex}. Attempt ${attempt + 1}/${API_KEY_POOL.length}`);
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${currentKey}`,
+        payload,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      return response;
+    } catch (error) {
+      lastError = error;
+      const status = error.response?.status;
+      // 429 Too Many Requests or 502/503/504 Bad Gateway often implies free tier rate limits
+      if (status === 429 || status === 502 || status === 503 || status === 504) {
+        console.warn(`[API Pool] Key index ${currentKeyIndex} failed with ${status}. Rotating to next key...`);
+        currentKeyIndex = (currentKeyIndex + 1) % API_KEY_POOL.length;
+        attempt++;
+        continue;
+      }
+      
+      // If it's a 400 Bad Request or other non-rate-limit error, throw immediately
+      throw error;
+    }
+  }
+
+  throw lastError; // All keys exhausted or failed
+}
+
 app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -111,6 +154,7 @@ const EXPLORE_PEOPLE = [
 
 const memoryStore = {
   posts: structuredClone(INITIAL_POSTS),
+  popups: [], // Memory fallback for popups
 };
 
 const hasMongo = Boolean(process.env.MONGODB_URI);
@@ -173,7 +217,21 @@ const postSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+const popupSchema = new mongoose.Schema(
+  {
+    id: { type: String, unique: true, index: true },
+    title: { type: String, required: true },
+    subtopic: { type: String, default: '' },
+    text: { type: String, required: true },
+    imageUrl: { type: String, default: '' },
+    isImportant: { type: Boolean, default: false },
+    actions: { type: Array, default: [] }, // Array of { label: String, url: String }
+    createdAt: { type: Date, default: Date.now },
+  }
+);
+
 const Post = mongoose.models.Post || mongoose.model('Post', postSchema);
+const Popup = mongoose.models.Popup || mongoose.model('Popup', popupSchema);
 
 function formatTimeAgo(dateValue) {
   const date = dateValue ? new Date(dateValue) : new Date();
@@ -318,30 +376,20 @@ app.post('/api/translate', async (req, res) => {
     return res.status(400).json({ error: 'Missing text or targetLang' });
   }
 
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    return res.status(500).json({ error: 'Gemini API Key is not configured on the server.' });
-  }
-
   try {
-    console.log("Using API KEY:", apiKey);
-    console.log("Using MODEL:", GEMINI_MODEL);
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are a professional real-time chat translator. Translate the following user message into the target language "${targetLang}". Return ONLY the translated text. Do not include notes, explanations, or quotes: "${text}"`,
-              },
-            ],
-          },
-        ],
-      },
-      { headers: { 'Content-Type': 'application/json' } },
-    );
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              text: `You are a professional real-time chat translator. Translate the following user message into the target language "${targetLang}". Return ONLY the translated text. Do not include notes, explanations, or quotes: "${text}"`,
+            },
+          ],
+        },
+      ],
+    };
 
+    const response = await callGeminiWithRotation(payload);
     const translatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     res.json({ translatedText });
   } catch (error) {
@@ -349,7 +397,7 @@ app.post('/api/translate', async (req, res) => {
     const upstreamMessage = error.response?.data?.error?.message || error.message;
     console.error('Translation error:', error.response?.data || error.message);
     res.status(upstreamStatus >= 400 && upstreamStatus < 500 ? 502 : 500).json({
-      error: 'Failed to translate text.',
+      error: 'Failed to translate text. All API keys may be exhausted.',
       details: upstreamMessage,
       model: GEMINI_MODEL,
     });
@@ -366,36 +414,29 @@ app.post('/api/translate-voice', upload.single('audio'), async (req, res) => {
     return res.status(400).json({ error: 'Missing targetLang' });
   }
 
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    return res.status(500).json({ error: 'Gemini API Key is not configured on the server.' });
-  }
-
   try {
     const base64Audio = req.file.buffer.toString('base64');
     const mimeType = req.file.mimetype || 'audio/m4a';
 
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        contents: [
-          {
-            parts: [
-              {
-                inlineData: {
-                  mimeType,
-                  data: base64Audio,
-                },
+    const payload = {
+      contents: [
+        {
+          parts: [
+            {
+              inlineData: {
+                mimeType,
+                data: base64Audio,
               },
-              {
-                text: `Transcribe this audio clip and translate it into the target language "${targetLang}". You MUST return only a raw JSON object in this format: { "transcription": "exact transcription in original language", "translation": "translated text" }. Do not wrap the JSON object in markdown blocks (e.g. do not use \`\`\`json).`,
-              },
-            ],
-          },
-        ],
-      },
-      { headers: { 'Content-Type': 'application/json' } },
-    );
+            },
+            {
+              text: `Transcribe this audio clip and translate it into the target language "${targetLang}". You MUST return only a raw JSON object in this format: { "transcription": "exact transcription in original language", "translation": "translated text" }. Do not wrap the JSON object in markdown blocks (e.g. do not use \`\`\`json).`,
+            },
+          ],
+        },
+      ],
+    };
+
+    const response = await callGeminiWithRotation(payload);
 
     let rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     if (rawText.startsWith('```')) {
@@ -409,7 +450,7 @@ app.post('/api/translate-voice', upload.single('audio'), async (req, res) => {
     const upstreamMessage = error.response?.data?.error?.message || error.message;
     console.error('Voice translation error:', error.response?.data || error.message);
     res.status(upstreamStatus >= 400 && upstreamStatus < 500 ? 502 : 500).json({
-      error: 'Failed to process voice translation.',
+      error: 'Failed to process voice translation. All API keys may be exhausted.',
       details: upstreamMessage,
       model: GEMINI_MODEL,
     });
@@ -428,11 +469,6 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'Missing text/message or targetLang/language' });
   }
 
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
-  if (!apiKey || apiKey === 'your_gemini_api_key_here') {
-    return res.status(500).json({ error: 'Gemini API Key is not configured on the server.' });
-  }
-
   try {
     // Convert history format to Gemini format if provided
     const formattedHistory = history.map(msg => ({
@@ -440,24 +476,21 @@ app.post('/api/chat', async (req, res) => {
       parts: [{ text: msg.text }]
     }));
 
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
-      {
-        contents: [
-          ...formattedHistory,
-          {
-            role: 'user',
-            parts: [
-              {
-                text: `You are a friendly, conversational AI companion in a language learning and translation app. Respond naturally to the user's message in "${targetLang}". Do NOT translate the user's message, just reply to it as a chat partner would. User message: "${text}"`,
-              },
-            ],
-          },
-        ],
-      },
-      { headers: { 'Content-Type': 'application/json' } },
-    );
+    const payload = {
+      contents: [
+        ...formattedHistory,
+        {
+          role: 'user',
+          parts: [
+            {
+              text: `You are a friendly, conversational AI companion in a language learning and translation app. Respond naturally to the user's message in "${targetLang}". Do NOT translate the user's message, just reply to it as a chat partner would. User message: "${text}"`,
+            },
+          ],
+        },
+      ],
+    };
 
+    const response = await callGeminiWithRotation(payload);
     const replyText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
     
     // Send push notification if token exists
@@ -474,7 +507,7 @@ app.post('/api/chat', async (req, res) => {
     const upstreamMessage = error.response?.data?.error?.message || error.message;
     console.error('Chat error:', error.response?.data || error.message);
     res.status(upstreamStatus >= 400 && upstreamStatus < 500 ? 502 : 500).json({
-      error: 'Failed to generate chat response.',
+      error: 'Failed to generate chat response. All API keys may be exhausted.',
       details: upstreamMessage,
     });
   }
@@ -800,6 +833,90 @@ app.get('/api/admin/logs/stream', (req, res) => {
   req.on('close', () => {
     adminClients = adminClients.filter(client => client !== res);
   });
+});
+
+// --- Popup Advert APIs ---
+
+app.get('/api/admin/popups', async (req, res) => {
+  try {
+    if (useMongo) {
+      const popups = await Popup.find().sort({ createdAt: -1 }).lean();
+      return res.json({ success: true, popups });
+    }
+    return res.json({ success: true, popups: memoryStore.popups.slice().sort((a, b) => b.createdAt - a.createdAt) });
+  } catch (error) {
+    console.error('Error fetching popups:', error);
+    res.status(500).json({ error: 'Failed to fetch popups' });
+  }
+});
+
+app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
+  try {
+    const { title, subtopic, text, isImportant, actions } = req.body;
+    let imageUrl = '';
+
+    if (req.file && imagekit) {
+      const fileName = `popup_${Date.now()}`;
+      const data = req.file.buffer.toString('base64');
+      const result = await imagekit.upload({
+        file: data,
+        fileName,
+        folder: '/UnityApp/popups',
+      });
+      imageUrl = result.url;
+    }
+
+    // Parse actions from string if it came as form-data
+    let parsedActions = [];
+    if (actions) {
+      try { parsedActions = JSON.parse(actions); } catch(e) {}
+    }
+
+    let popupCount = 0;
+    if (useMongo) {
+      popupCount = await Popup.countDocuments();
+    } else {
+      popupCount = memoryStore.popups.length;
+    }
+    const newId = `pp${popupCount + 1}`;
+
+    const newPopup = {
+      id: newId,
+      title,
+      subtopic,
+      text,
+      isImportant: isImportant === 'true' || isImportant === true,
+      actions: parsedActions,
+      imageUrl,
+      createdAt: new Date()
+    };
+
+    if (useMongo) {
+      await Popup.create(newPopup);
+    } else {
+      memoryStore.popups.unshift(newPopup);
+    }
+
+    res.json({ success: true, popup: newPopup });
+  } catch (error) {
+    console.error('Error creating popup:', error);
+    res.status(500).json({ error: 'Failed to create popup' });
+  }
+});
+
+app.delete('/api/admin/popups/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (useMongo) {
+      await Popup.findOneAndDelete({ id });
+    } else {
+      memoryStore.popups = memoryStore.popups.filter(p => p.id !== id);
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting popup:', error);
+    res.status(500).json({ error: 'Failed to delete popup' });
+  }
 });
 
 // Serve admin dashboard
