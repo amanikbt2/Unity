@@ -155,6 +155,7 @@ const EXPLORE_PEOPLE = [
 const memoryStore = {
   posts: structuredClone(INITIAL_POSTS),
   popups: [], // Memory fallback for popups
+  popupReplies: [], // Memory fallback for replies
 };
 
 const hasMongo = Boolean(process.env.MONGODB_URI);
@@ -226,12 +227,28 @@ const popupSchema = new mongoose.Schema(
     imageUrl: { type: String, default: '' },
     isImportant: { type: Boolean, default: false },
     actions: { type: Array, default: [] }, // Array of { label: String, url: String }
+    isAppUpdate: { type: Boolean, default: false },
+    targetVersion: { type: String, default: '' },
+    isInteractive: { type: Boolean, default: false },
+    submitBtnText: { type: String, default: 'Submit' },
+    formFields: { type: Array, default: [] }, // Array of { type, label, options, required }
+    createdAt: { type: Date, default: Date.now },
+  }
+);
+
+const popupReplySchema = new mongoose.Schema(
+  {
+    popupId: { type: String, required: true, index: true },
+    userName: { type: String, default: 'xayLiteUser' },
+    appVersion: { type: String, default: 'Unknown' },
+    replyData: { type: mongoose.Schema.Types.Mixed, default: {} },
     createdAt: { type: Date, default: Date.now },
   }
 );
 
 const Post = mongoose.models.Post || mongoose.model('Post', postSchema);
 const Popup = mongoose.models.Popup || mongoose.model('Popup', popupSchema);
+const PopupReply = mongoose.models.PopupReply || mongoose.model('PopupReply', popupReplySchema);
 
 function formatTimeAgo(dateValue) {
   const date = dateValue ? new Date(dateValue) : new Date();
@@ -839,11 +856,25 @@ app.get('/api/admin/logs/stream', (req, res) => {
 
 app.get('/api/admin/popups', async (req, res) => {
   try {
+    const { appVersion } = req.query;
+    let popups = [];
+
     if (useMongo) {
-      const popups = await Popup.find().sort({ createdAt: -1 }).lean();
-      return res.json({ success: true, popups });
+      popups = await Popup.find().sort({ createdAt: -1 }).lean();
+    } else {
+      popups = memoryStore.popups.slice().sort((a, b) => b.createdAt - a.createdAt);
     }
-    return res.json({ success: true, popups: memoryStore.popups.slice().sort((a, b) => b.createdAt - a.createdAt) });
+
+    if (appVersion) {
+      popups = popups.filter(p => {
+        if (p.isAppUpdate && p.targetVersion) {
+          return p.targetVersion !== appVersion;
+        }
+        return true;
+      });
+    }
+
+    return res.json({ success: true, popups });
   } catch (error) {
     console.error('Error fetching popups:', error);
     res.status(500).json({ error: 'Failed to fetch popups' });
@@ -852,7 +883,7 @@ app.get('/api/admin/popups', async (req, res) => {
 
 app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
   try {
-    const { title, subtopic, text, isImportant, actions } = req.body;
+    const { title, subtopic, text, isImportant, actions, isAppUpdate, targetVersion, isInteractive, submitBtnText, formFields } = req.body;
     let imageUrl = '';
 
     if (req.file && imagekit) {
@@ -872,6 +903,11 @@ app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
       try { parsedActions = JSON.parse(actions); } catch(e) {}
     }
 
+    let parsedFormFields = [];
+    if (formFields) {
+      try { parsedFormFields = JSON.parse(formFields); } catch(e) {}
+    }
+
     let popupCount = 0;
     if (useMongo) {
       popupCount = await Popup.countDocuments();
@@ -886,6 +922,11 @@ app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
       subtopic,
       text,
       isImportant: isImportant === 'true' || isImportant === true,
+      isAppUpdate: isAppUpdate === 'true' || isAppUpdate === true,
+      targetVersion: targetVersion || '',
+      isInteractive: isInteractive === 'true' || isInteractive === true,
+      submitBtnText: submitBtnText || 'Submit',
+      formFields: parsedFormFields,
       actions: parsedActions,
       imageUrl,
       createdAt: new Date()
@@ -916,6 +957,52 @@ app.delete('/api/admin/popups/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deleting popup:', error);
     res.status(500).json({ error: 'Failed to delete popup' });
+  }
+});
+
+// Interactive Popup Replies Endpoints
+
+app.post('/api/popups/:id/reply', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userName, appVersion, replyData } = req.body;
+
+    const replyDoc = {
+      popupId: id,
+      userName: userName || 'xayLiteUser',
+      appVersion: appVersion || 'Unknown',
+      replyData: replyData || {},
+      createdAt: new Date()
+    };
+
+    if (useMongo) {
+      await PopupReply.create(replyDoc);
+    } else {
+      memoryStore.popupReplies.unshift(replyDoc);
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving reply:', error);
+    res.status(500).json({ error: 'Failed to save reply' });
+  }
+});
+
+app.get('/api/admin/popups/:id/replies', async (req, res) => {
+  try {
+    const { id } = req.params;
+    let replies = [];
+
+    if (useMongo) {
+      replies = await PopupReply.find({ popupId: id }).sort({ createdAt: -1 }).lean();
+    } else {
+      replies = memoryStore.popupReplies.filter(r => r.popupId === id);
+    }
+
+    res.json({ success: true, replies });
+  } catch (error) {
+    console.error('Error fetching replies:', error);
+    res.status(500).json({ error: 'Failed to fetch replies' });
   }
 });
 

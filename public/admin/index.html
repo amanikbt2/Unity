@@ -195,6 +195,20 @@
     .popup-img { width: 100%; height: 120px; object-fit: cover; border-radius: 6px; }
     .btn-danger { background: var(--danger); padding: 6px 12px; font-size: 12px; border: none; border-radius: 4px; color: white; cursor: pointer; }
     .btn-danger:hover { opacity: 0.9; }
+
+    /* Interactive Forms Config */
+    .interactive-config { background: rgba(0,0,0,0.1); padding: 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px; display: none; }
+    .form-field-row { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed rgba(255,255,255,0.1); }
+    .form-field-controls { display: flex; gap: 10px; align-items: center; }
+    .form-field-controls select { padding: 8px; border-radius: 4px; background: rgba(0,0,0,0.3); color: white; border: 1px solid var(--border); }
+    
+    /* Modal */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-content { background: var(--card-bg); width: 600px; max-width: 90%; max-height: 80vh; border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; }
+    .modal-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { margin: 0; }
+    .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+    .reply-card { background: rgba(255,255,255,0.05); padding: 16px; border-radius: 8px; margin-bottom: 12px; }
   </style>
 </head>
 <body>
@@ -258,7 +272,31 @@
             <label for="p-important" style="margin:0; color:#fff;">Make Important (Non-dismissible by 'X')</label>
           </div>
 
-          <div class="actions-config">
+          <div class="checkbox-group">
+            <input type="checkbox" id="p-app-update" onchange="document.getElementById('p-target-version-container').style.display = this.checked ? 'block' : 'none'">
+            <label for="p-app-update" style="margin:0; color:#fff;">App Update Popup (Requires Target Version)</label>
+          </div>
+          <div class="form-group" id="p-target-version-container" style="display:none;">
+            <label>Target Latest Version (Users NOT on this version will see the popup)</label>
+            <input type="text" id="p-target-version" placeholder="e.g. 1.2.2">
+          </div>
+
+          <div class="checkbox-group">
+            <input type="checkbox" id="p-interactive" onchange="toggleInteractiveMode(this.checked)">
+            <label for="p-interactive" style="margin:0; color:#accent;">Make Interactive (Add Forms/Surveys)</label>
+          </div>
+
+          <div class="interactive-config" id="interactive-config">
+            <div class="form-group">
+              <label>Submit Button Text</label>
+              <input type="text" id="p-submit-text" placeholder="e.g. Send Feedback" value="Submit">
+            </div>
+            <label>Form Fields</label>
+            <div id="form-fields-list"></div>
+            <button type="button" style="background:none; color:var(--accent); border:none; cursor:pointer;" onclick="addFormField()">+ Add Form Field</button>
+          </div>
+
+          <div class="actions-config" id="actions-config">
             <label>Action Buttons (Optional)</label>
             <div id="actions-list">
               <div class="action-row">
@@ -279,6 +317,19 @@
         <div id="popups-feed">
           <div style="color: var(--text-muted);">Loading popups...</div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replies Modal -->
+  <div class="modal-overlay" id="replies-modal" onclick="if(event.target===this) this.style.display='none'">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="replies-title">User Replies</h3>
+        <button style="background:none;border:none;color:var(--text);cursor:pointer;font-size:20px;" onclick="document.getElementById('replies-modal').style.display='none'">&times;</button>
+      </div>
+      <div class="modal-body" id="replies-body">
+        Loading...
       </div>
     </div>
   </div>
@@ -322,6 +373,33 @@
       else appendLog(data);
     };
 
+    // Interactive Form Builder
+    function toggleInteractiveMode(isInteractive) {
+      document.getElementById('interactive-config').style.display = isInteractive ? 'block' : 'none';
+      document.getElementById('actions-config').style.display = isInteractive ? 'none' : 'block';
+    }
+
+    function addFormField() {
+      const id = Date.now();
+      const row = document.createElement('div');
+      row.className = 'form-field-row';
+      row.innerHTML = `
+        <div class="form-field-controls">
+          <select class="f-type" onchange="document.getElementById('options-${id}').style.display = (this.value === 'select' || this.value === 'radio') ? 'block' : 'none'">
+            <option value="text">Text Input</option>
+            <option value="checkbox">Checkbox</option>
+            <option value="radio">Radio Buttons</option>
+            <option value="select">Dropdown (Select)</option>
+          </select>
+          <input type="text" placeholder="Field Label (e.g. What's your name?)" class="f-label" style="flex:1;">
+          <label style="margin:0;display:flex;align-items:center;gap:4px;color:#fff;"><input type="checkbox" class="f-required"> Required</label>
+          <button type="button" onclick="this.parentElement.parentElement.remove()" style="background:none;color:var(--danger);border:none;cursor:pointer;">X</button>
+        </div>
+        <input type="text" id="options-${id}" class="f-options" placeholder="Comma separated options (e.g. Yes, No, Maybe)" style="display:none;">
+      `;
+      document.getElementById('form-fields-list').appendChild(row);
+    }
+
     // Updates Logic
     function addActionRow() {
       const row = document.createElement('div');
@@ -351,6 +429,11 @@
               <div style="font-size:14px;color:var(--text-muted);">${p.subtopic}</div>
               <p style="margin:5px 0;font-size:14px;">${p.text}</p>
               ${p.isImportant ? '<div style="color:var(--danger);font-size:12px;">★ Important</div>' : ''}
+              ${p.isAppUpdate ? `<div style="color:var(--accent);font-size:12px;">🔄 App Update (Target: ${p.targetVersion})</div>` : ''}
+              ${p.isInteractive ? `
+                <div style="color:#A78BFA;font-size:12px;">📝 Interactive Form</div>
+                <button class="btn" style="padding:4px 8px;font-size:12px;margin-top:4px;" onclick="viewReplies('${p.id}', '${p.title.replace(/'/g, "\\'")}')">See Replies</button>
+              ` : ''}
               <div style="display:flex;gap:5px;margin-top:5px;">
                 ${p.actions.map(a => `<span style="background:var(--primary);padding:2px 8px;border-radius:4px;font-size:12px;">${a.label}</span>`).join('')}
               </div>
@@ -379,11 +462,29 @@
         if (label) actions.push({ label, url });
       });
 
+      const formFields = [];
+      if (document.getElementById('p-interactive').checked) {
+        document.querySelectorAll('.form-field-row').forEach(row => {
+          const type = row.querySelector('.f-type').value;
+          const label = row.querySelector('.f-label').value;
+          const options = row.querySelector('.f-options').value;
+          const required = row.querySelector('.f-required').checked;
+          if (label) {
+            formFields.push({ type, label, required, options: options.split(',').map(o=>o.trim()).filter(o=>o) });
+          }
+        });
+      }
+
       const formData = new FormData();
       formData.append('title', document.getElementById('p-title').value);
       formData.append('subtopic', document.getElementById('p-subtopic').value);
       formData.append('text', document.getElementById('p-text').value);
       formData.append('isImportant', document.getElementById('p-important').checked);
+      formData.append('isAppUpdate', document.getElementById('p-app-update').checked);
+      formData.append('targetVersion', document.getElementById('p-target-version').value);
+      formData.append('isInteractive', document.getElementById('p-interactive').checked);
+      formData.append('submitBtnText', document.getElementById('p-submit-text').value);
+      formData.append('formFields', JSON.stringify(formFields));
       formData.append('actions', JSON.stringify(actions));
 
       const fileInput = document.getElementById('p-image');
@@ -404,6 +505,8 @@
               <input type="url" placeholder="Redirect URL (https://...)" class="a-url">
             </div>
           `;
+          document.getElementById('form-fields-list').innerHTML = '';
+          toggleInteractiveMode(false);
           loadPopups();
           alert('Popup published successfully!');
         }
@@ -415,6 +518,42 @@
         btn.disabled = false;
       }
     });
+
+    async function viewReplies(id, title) {
+      document.getElementById('replies-title').innerText = `Replies: ${title}`;
+      const body = document.getElementById('replies-body');
+      body.innerHTML = 'Loading...';
+      document.getElementById('replies-modal').style.display = 'flex';
+
+      try {
+        const res = await fetch(`/api/admin/popups/${id}/replies`);
+        const data = await res.json();
+        if (!data.replies.length) {
+          body.innerHTML = '<div style="color:var(--text-muted);text-align:center;">No replies yet.</div>';
+          return;
+        }
+
+        body.innerHTML = data.replies.map(r => `
+          <div class="reply-card">
+            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+              <strong>${r.userName}</strong>
+              <span style="color:var(--text-muted);font-size:12px;">App v${r.appVersion}</span>
+            </div>
+            ${Object.entries(r.replyData || {}).map(([key, val]) => `
+              <div style="margin-bottom:6px;">
+                <span style="color:var(--text-muted);font-size:13px;">${key}:</span>
+                <div style="color:var(--text);">${val}</div>
+              </div>
+            `).join('')}
+            <div style="text-align:right;font-size:10px;color:rgba(255,255,255,0.2);">
+              ${new Date(r.createdAt).toLocaleString()}
+            </div>
+          </div>
+        `).join('');
+      } catch (err) {
+        body.innerHTML = '<div style="color:var(--danger);">Failed to load replies.</div>';
+      }
+    }
   </script>
 </body>
 </html>
