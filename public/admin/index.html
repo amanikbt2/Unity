@@ -136,11 +136,43 @@
       font-size: 14px;
       line-height: 1.5;
     }
-    .log-entry { margin-bottom: 8px; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 8px; }
-    .log-time { color: #565F89; }
-    .log-user { color: #7DCFFF; font-weight: bold; }
-    .log-event { color: #9ECE6A; font-weight: bold; }
-    .log-details { color: #C0CAF5; margin-left: 10px; }
+    .log-entry {
+      margin-bottom: 12px;
+      border-bottom: 1px dashed rgba(255,255,255,0.1);
+      padding-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .log-meta {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .log-timestamp {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 90px;
+      color: #565F89;
+      font-size: 12px;
+      line-height: 1.2;
+    }
+    .log-date {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.8;
+    }
+    .log-time {
+      color: #9ECE6A;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .log-user { color: #7DCFFF; font-weight: 600; }
+    .log-event { color: #9ECE6A; font-weight: 700; }
+    .log-details { color: #C0CAF5; margin-left: 0; font-size: 13px; }
 
     /* Updates View */
     .updates-layout {
@@ -359,9 +391,21 @@
     function appendLog(log) {
       const el = document.createElement('div');
       el.className = 'log-entry';
-      const time = new Date(log.timestamp).toLocaleTimeString();
+      const created = new Date(log.timestamp);
+      const dateStr = created.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeStr = created.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
       const detailsStr = typeof log.details === 'object' ? JSON.stringify(log.details) : log.details;
-      el.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-user">${log.user}</span> <span class="log-event">${log.event}</span> <span class="log-details">${detailsStr !== '{}' ? detailsStr : ''}</span>`;
+      el.innerHTML = `
+        <div class="log-meta">
+          <div class="log-timestamp">
+            <span class="log-date">${dateStr}</span>
+            <span class="log-time">${timeStr}</span>
+          </div>
+          <span class="log-user">${log.user}</span>
+          <span class="log-event">${log.event}</span>
+        </div>
+        ${detailsStr !== '{}' ? `<div class="log-details">${detailsStr}</div>` : ''}
+      `;
       terminal.appendChild(el);
       terminal.scrollTop = terminal.scrollHeight;
     }

@@ -246,9 +246,28 @@ const popupReplySchema = new mongoose.Schema(
   }
 );
 
+const activityLogSchema = new mongoose.Schema(
+  {
+    event: { type: String, required: true, index: true }, // e.g. 'app_open', 'login_click', 'login_success', 'login_fail'
+    method: { type: String, default: '' },                 // 'google', 'email', 'saved_profile'
+    userLabel: { type: String, default: 'unknown' },       // name if known, or 'guest'
+    email: { type: String, default: '' },
+    platform: { type: String, default: '' },               // 'android', 'ios', 'web'
+    appVersion: { type: String, default: '' },
+    error: { type: String, default: '' },
+    meta: { type: mongoose.Schema.Types.Mixed, default: {} },
+    createdAt: { type: Date, default: Date.now, index: true },
+  },
+  { _id: true }
+);
+
 const Post = mongoose.models.Post || mongoose.model('Post', postSchema);
 const Popup = mongoose.models.Popup || mongoose.model('Popup', popupSchema);
 const PopupReply = mongoose.models.PopupReply || mongoose.model('PopupReply', popupReplySchema);
+const ActivityLog = mongoose.models.ActivityLog || mongoose.model('ActivityLog', activityLogSchema);
+
+// In-memory fallback when MongoDB is unavailable
+const memoryLogs = [];
 
 function formatTimeAgo(dateValue) {
   const date = dateValue ? new Date(dateValue) : new Date();
@@ -1003,6 +1022,78 @@ app.get('/api/admin/popups/:id/replies', async (req, res) => {
   } catch (error) {
     console.error('Error fetching replies:', error);
     res.status(500).json({ error: 'Failed to fetch replies' });
+  }
+});
+
+/* ============================================================
+   ACTIVITY LOGGING
+   ============================================================ */
+
+// POST /api/logs — receive a client-side activity log entry
+app.post('/api/logs', async (req, res) => {
+  try {
+    const {
+      event,
+      method = '',
+      userLabel = 'guest',
+      email = '',
+      platform = '',
+      appVersion = '',
+      error = '',
+      meta = {},
+    } = req.body;
+
+    if (!event) {
+      return res.status(400).json({ error: 'event is required' });
+    }
+
+    const entry = {
+      event,
+      method,
+      userLabel,
+      email,
+      platform,
+      appVersion,
+      error,
+      meta,
+      createdAt: new Date(),
+    };
+
+    if (useMongo) {
+      await ActivityLog.create(entry);
+    } else {
+      memoryLogs.unshift(entry);
+      if (memoryLogs.length > 1000) memoryLogs.length = 1000; // cap in-memory
+    }
+
+    console.log(`[ActivityLog] ${entry.createdAt.toISOString()} | ${event} | ${userLabel} | ${platform} | ${error || 'ok'}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[ActivityLog] Failed to save log:', err.message);
+    res.status(500).json({ error: 'Failed to save log' });
+  }
+});
+
+// GET /api/logs — retrieve recent logs (for admin/debugging)
+app.get('/api/logs', async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const event = req.query.event || null;
+
+    let logs;
+    if (useMongo) {
+      const query = event ? { event } : {};
+      logs = await ActivityLog.find(query).sort({ createdAt: -1 }).limit(limit).lean();
+    } else {
+      logs = event
+        ? memoryLogs.filter(l => l.event === event).slice(0, limit)
+        : memoryLogs.slice(0, limit);
+    }
+
+    res.json({ success: true, count: logs.length, logs });
+  } catch (err) {
+    console.error('[ActivityLog] Failed to fetch logs:', err.message);
+    res.status(500).json({ error: 'Failed to fetch logs' });
   }
 });
 

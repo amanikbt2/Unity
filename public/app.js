@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   let currentUser = {
     name: 'Amani User',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
+    avatar: '/avatars/avatar_1.jpg',
     nativeLang: 'en',
     secondaryLangs: ['es', 'ja'],
     micDevice: 'default',
@@ -472,10 +472,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const languagesCompleted = currentUser.secondaryLangs && currentUser.secondaryLangs.length > 0;
     const voiceCompleted = currentUser.micTested === true;
     const profileCompleted = currentUser.name && currentUser.name !== 'Amani User' && 
-                             currentUser.avatar && !currentUser.avatar.includes('photo-1534528741775-53994a69daeb');
+                             currentUser.avatar && !currentUser.avatar.includes('avatar_1.jpg');
     
     if (currentUser.name && currentUser.name !== 'Amani User') completedSteps++;
-    if (currentUser.avatar && !currentUser.avatar.includes('photo-1534528741775-53994a69daeb')) completedSteps++; // Image changed
+    if (currentUser.avatar && !currentUser.avatar.includes('avatar_1.jpg')) completedSteps++; // Image changed
     if (currentUser.nativeLang) completedSteps++;
     if (currentUser.secondaryLangs && currentUser.secondaryLangs.length > 0) completedSteps++;
     if (currentUser.micTested) completedSteps++;
