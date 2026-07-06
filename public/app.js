@@ -901,4 +901,37 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }, 1200);
   }
+
+  /* ==========================================================================
+     WEB APP PROMO MODAL LOGIC (Bother user every 2 minutes)
+     ========================================================================== */
+  const promoModal = document.getElementById('web-promo-modal');
+  const promoCloseBtn = document.getElementById('btn-promo-close');
+  const promoDownloadBtn = document.getElementById('btn-promo-download');
+
+  if (promoModal && promoCloseBtn) {
+    const showPromo = () => {
+      promoModal.classList.remove('hidden');
+    };
+
+    const hidePromo = () => {
+      promoModal.classList.add('hidden');
+    };
+
+    // Show initial promo after 30 seconds, then repeat every 2 minutes (120,000ms)
+    setTimeout(showPromo, 30000);
+    setInterval(showPromo, 120000);
+
+    promoCloseBtn.addEventListener('click', hidePromo);
+    if (promoDownloadBtn) {
+      promoDownloadBtn.addEventListener('click', hidePromo);
+    }
+
+    // Close when clicking overlay backdrop
+    promoModal.addEventListener('click', (e) => {
+      if (e.target === promoModal) {
+        hidePromo();
+      }
+    });
+  }
 });
