@@ -87,6 +87,44 @@ document.addEventListener('DOMContentLoaded', () => {
   let isConvMicActive = true;
   let isKeyboardMode = false;
 
+  /* ==========================================================================
+     ACTIVITY LOGGING UTILITY (Web Client)
+     ========================================================================== */
+  function logWebEvent(eventName, errorMsg = '', metaData = {}) {
+    const logData = {
+      event: `(web) ${eventName}`,
+      method: 'web_client',
+      userLabel: currentUser.name || 'guest',
+      email: currentUser.email || '',
+      platform: 'web',
+      appVersion: '1.0.0',
+      error: errorMsg,
+      meta: metaData
+    };
+
+    fetch('/api/logs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(logData)
+    }).catch(err => console.warn('[Log] Failed to send log:', err));
+  }
+
+  // Global error handler for Web Client
+  window.onerror = function (message, source, lineno, colno, error) {
+    const errorDetails = `${message} at ${source}:${lineno}:${colno}`;
+    logWebEvent('uncaught_error', errorDetails, { stack: error ? error.stack : '' });
+    return false;
+  };
+
+  window.onunhandledrejection = function (event) {
+    logWebEvent('unhandled_promise_rejection', String(event.reason));
+  };
+
+  // Log initial web app open event
+  logWebEvent('app_open');
+
   // Initialize App
   loadProfileSettings();
   updateOnboardingProgress();
@@ -145,6 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
      ========================================================================== */
   // Google sign in click
   btnGoogle.addEventListener('click', () => {
+    logWebEvent('login_click');
     const btnText = btnGoogle.querySelector('.btn-content');
     const spinner = btnGoogle.querySelector('.loader-spinner');
     
@@ -161,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
       btnGoogle.disabled = false;
       
       // Go to home screen
+      logWebEvent('login_success');
       navigateTo('home');
     }, 850);
   });
@@ -182,11 +222,12 @@ document.addEventListener('DOMContentLoaded', () => {
      ========================================================================== */
   // Start Conversation trigger
   btnStartConv.addEventListener('click', () => {
+    logWebEvent('conversation_start', '', { partner: 'Unity Translation AI' });
     const activePartnerName = document.getElementById('active-partner-name');
     const activePartnerAvatar = document.getElementById('active-partner-avatar');
     
     if (activePartnerName) activePartnerName.textContent = 'Unity Translation AI';
-    if (activePartnerAvatar) activePartnerAvatar.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80';
+    if (activePartnerAvatar) activePartnerAvatar.src = '/avatars/avatar_1.jpg';
     
     navigateTo('conversation');
   });
@@ -203,6 +244,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const activePartnerAvatar = document.getElementById('active-partner-avatar');
       const activePartnerStatus = document.getElementById('active-partner-status');
       
+      const partnerName = nameEl ? nameEl.textContent : 'Unknown';
+      logWebEvent('conversation_start', '', { partner: partnerName });
+
       if (nameEl && activePartnerName) {
         activePartnerName.textContent = nameEl.textContent;
       }
@@ -212,8 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
           activePartnerAvatar.src = imgEl.src;
           activePartnerAvatar.style.display = 'block';
         } else if (groupAvatarEl) {
-          // If it's a group, clear or set to a placeholder
-          activePartnerAvatar.src = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80';
+          activePartnerAvatar.src = '/avatars/avatar_1.jpg';
         }
       }
       
@@ -400,6 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(() => {
       autosavePill.classList.remove('saving');
       autosavePill.querySelector('.save-text').textContent = 'Saved';
+      logWebEvent('profile_update', '', currentUser);
       
       // Hide pill after short display
       setTimeout(() => {
@@ -605,6 +649,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Toggle mic button in conversation view
   btnMicToggle.addEventListener('click', () => {
     isConvMicActive = !isConvMicActive;
+    logWebEvent('mic_toggle', '', { active: isConvMicActive });
     if (isConvMicActive) {
       btnMicToggle.classList.add('active');
       waveformContainer.classList.remove('hidden');
@@ -794,6 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnKeyboardToggle) {
     btnKeyboardToggle.addEventListener('click', () => {
       isKeyboardMode = !isKeyboardMode;
+      logWebEvent('keyboard_toggle', '', { enabled: isKeyboardMode });
       if (isKeyboardMode) {
         // Show keyboard typing bar
         keyboardInputBar.classList.remove('hidden');
@@ -858,6 +904,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const text = keyboardTextInput.value.trim();
     if (!text) return;
     
+    logWebEvent('message_sent', '', { text: text });
+    
     // Clear input
     keyboardTextInput.value = '';
     
@@ -912,25 +960,31 @@ document.addEventListener('DOMContentLoaded', () => {
   if (promoModal && promoCloseBtn) {
     const showPromo = () => {
       promoModal.classList.remove('hidden');
+      logWebEvent('promo_popup_shown');
     };
 
-    const hidePromo = () => {
+    const hidePromo = (action = 'close') => {
       promoModal.classList.add('hidden');
+      if (action === 'download') {
+        logWebEvent('promo_download_click');
+      } else {
+        logWebEvent('promo_close_click');
+      }
     };
 
     // Show initial promo after 30 seconds, then repeat every 2 minutes (120,000ms)
     setTimeout(showPromo, 30000);
     setInterval(showPromo, 120000);
 
-    promoCloseBtn.addEventListener('click', hidePromo);
+    promoCloseBtn.addEventListener('click', () => hidePromo('close'));
     if (promoDownloadBtn) {
-      promoDownloadBtn.addEventListener('click', hidePromo);
+      promoDownloadBtn.addEventListener('click', () => hidePromo('download'));
     }
 
     // Close when clicking overlay backdrop
     promoModal.addEventListener('click', (e) => {
       if (e.target === promoModal) {
-        hidePromo();
+        hidePromo('close');
       }
     });
   }
