@@ -898,6 +898,43 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
+// POST /api/users/avatar - Upload profile avatar slot image to ImageKit using clean email-based filename
+app.post('/api/users/avatar', upload.single('avatar'), async (req, res) => {
+  try {
+    const { uid, email = 'unknown', slotIndex = 0 } = req.body;
+    if (!uid) {
+      return res.status(400).json({ error: 'uid is required' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image file uploaded' });
+    }
+
+    if (!imagekit) {
+      return res.status(503).json({ error: 'ImageKit is not configured' });
+    }
+
+    // Clean email to form a clean filename
+    const cleanEmail = email.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const fileName = `profile_${cleanEmail}_slot_${slotIndex}`;
+    const data = req.file.buffer.toString('base64');
+
+    // Upload to ImageKit (useUniqueFileName: false ensures overwriting old slots)
+    const result = await imagekit.upload({
+      file: data,
+      fileName,
+      folder: '/UnityApp/profiles',
+      useUniqueFileName: false
+    });
+
+    console.log(`[ImageKit] Uploaded profile picture: ${fileName} -> ${result.url}`);
+    res.json({ success: true, url: result.url });
+  } catch (err) {
+    console.error('[ImageKit] Profile upload error:', err.message);
+    res.status(500).json({ error: 'Failed to upload profile picture to ImageKit' });
+  }
+});
+
 // DELETE /api/users/:uid - Delete user profile globally on account deletion
 app.delete('/api/users/:uid', async (req, res) => {
   try {
@@ -941,12 +978,21 @@ let adminClients = [];
 
 app.post('/api/track', (req, res) => {
   try {
-    const { event, user, details } = req.body;
+    const { event, user, details, platform } = req.body;
+    let derivedPlatform = platform || 'server';
+    if (event) {
+      if (event.includes('(web)') || event.toLowerCase().includes('web')) {
+        derivedPlatform = 'web';
+      } else {
+        derivedPlatform = 'app';
+      }
+    }
     const logEntry = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
       event: event || 'unknown',
       user: user || 'Anonymous',
+      platform: derivedPlatform,
       details: details || {}
     };
     
@@ -966,13 +1012,52 @@ app.post('/api/track', (req, res) => {
   }
 });
 
-app.get('/api/admin/stats', (req, res) => {
-  // Simple mock metrics for now, or you could count unique users seen today
-  res.json({
-    totalRegistered: 1248, // Or however you track this
-    totalOnline: Math.floor(Math.random() * 50) + 10 // Mock dynamic number
-  });
+app.get('/api/admin/stats', async (req, res) => {
+  try {
+    let totalLogs = adminLogQueue.length;
+    if (useMongo) {
+      totalLogs = await ActivityLog.countDocuments();
+    }
+    let totalPopups = memoryStore.popups.length;
+    if (useMongo) {
+      totalPopups = await Popup.countDocuments();
+    }
+    res.json({
+      totalRegistered: 1248,
+      totalOnline: Math.floor(Math.random() * 50) + 10,
+      totalLogs,
+      totalPopups
+    });
+  } catch (err) {
+    res.json({
+      totalRegistered: 1248,
+      totalOnline: Math.floor(Math.random() * 50) + 10,
+      totalLogs: adminLogQueue.length,
+      totalPopups: memoryStore.popups.length
+    });
+  }
 });
+
+app.delete('/api/admin/logs/clear', async (req, res) => {
+  try {
+    adminLogQueue.length = 0;
+    memoryLogs.length = 0;
+    if (useMongo) {
+      await ActivityLog.deleteMany({});
+    }
+    
+    // Broadcast clear event to all SSE clients
+    adminClients.forEach(client => {
+      client.write(`data: ${JSON.stringify({ type: 'clear' })}\n\n`);
+    });
+
+    res.json({ success: true, message: 'Logs cleared successfully' });
+  } catch (err) {
+    console.error('Failed to clear logs:', err);
+    res.status(500).json({ error: 'Failed to clear logs' });
+  }
+});
+
 
 app.get('/api/admin/logs/stream', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');
@@ -1187,6 +1272,30 @@ app.post('/api/logs', async (req, res) => {
     }
 
     console.log(`[ActivityLog] ${entry.createdAt.toISOString()} | ${event} | ${userLabel} | ${platform} | ${error || 'ok'}`);
+    
+    // Broadcast to SSE clients and update live queue
+    const sseEntry = {
+      id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 4),
+      timestamp: entry.createdAt.toISOString(),
+      event: entry.event || 'unknown',
+      user: entry.userLabel || 'guest',
+      platform: entry.platform || 'web',
+      details: {
+        method: entry.method,
+        email: entry.email,
+        appVersion: entry.appVersion,
+        error: entry.error,
+        meta: entry.meta
+      }
+    };
+    adminLogQueue.unshift(sseEntry);
+    if (adminLogQueue.length > 500) {
+      adminLogQueue.pop();
+    }
+    adminClients.forEach(client => {
+      client.write(`data: ${JSON.stringify(sseEntry)}\n\n`);
+    });
+
     res.json({ success: true });
   } catch (err) {
     console.error('[ActivityLog] Failed to save log:', err.message);
