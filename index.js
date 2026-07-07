@@ -279,6 +279,21 @@ const Popup = mongoose.models.Popup || mongoose.model('Popup', popupSchema);
 const PopupReply = mongoose.models.PopupReply || mongoose.model('PopupReply', popupReplySchema);
 const ActivityLog = mongoose.models.ActivityLog || mongoose.model('ActivityLog', activityLogSchema);
 
+const userProfileSchema = new mongoose.Schema(
+  {
+    uid: { type: String, required: true, unique: true, index: true },
+    name: { type: String, required: true },
+    avatar: { type: String, default: '' },
+    flag: { type: String, default: '🇺🇸' },
+    langName: { type: String, default: 'English' },
+    bio: { type: String, default: 'Available on Unity' },
+    updatedAt: { type: Date, default: Date.now },
+  }
+);
+const UserProfile = mongoose.models.UserProfile || mongoose.model('UserProfile', userProfileSchema);
+
+const memoryUserProfiles = new Map();
+
 // In-memory fallback when MongoDB is unavailable
 const memoryLogs = [];
 
@@ -808,9 +823,101 @@ app.delete('/api/posts/:postId', async (req, res) => {
   }
 });
 
-// Explore feed stays as a lightweight directory of people.
-app.get('/api/explore', (req, res) => {
-  res.json(EXPLORE_PEOPLE);
+// Explore feed combines registered user profiles from DB/memory with presets
+app.get('/api/explore', async (req, res) => {
+  try {
+    let registeredProfiles = [];
+    if (useMongo) {
+      const dbProfiles = await UserProfile.find().sort({ updatedAt: -1 }).lean();
+      registeredProfiles = dbProfiles.map(p => ({
+        id: p.uid,
+        name: p.name,
+        avatar: p.avatar,
+        flag: p.flag,
+        langName: p.langName,
+        bio: p.bio
+      }));
+    } else {
+      registeredProfiles = Array.from(memoryUserProfiles.values()).map(p => ({
+        id: p.uid,
+        name: p.name,
+        avatar: p.avatar,
+        flag: p.flag,
+        langName: p.langName,
+        bio: p.bio
+      }));
+    }
+
+    // De-duplicate if any UID has same ID as preset, though not likely
+    const allProfiles = [...registeredProfiles, ...EXPLORE_PEOPLE];
+    const uniqueProfiles = [];
+    const seenIds = new Set();
+    for (const profile of allProfiles) {
+      if (!seenIds.has(profile.id)) {
+        seenIds.add(profile.id);
+        uniqueProfiles.push(profile);
+      }
+    }
+
+    res.json(uniqueProfiles);
+  } catch (err) {
+    console.error('Explore fetch error:', err);
+    res.json(EXPLORE_PEOPLE); // fallback
+  }
+});
+
+// POST /api/users - Create or update a user profile globally
+app.post('/api/users', async (req, res) => {
+  try {
+    const { uid, name, avatar = '', flag = '🇺🇸', langName = 'English', bio = 'Available on Unity' } = req.body;
+    if (!uid || !name) {
+      return res.status(400).json({ error: 'uid and name are required' });
+    }
+
+    const profileData = {
+      uid,
+      name,
+      avatar,
+      flag,
+      langName,
+      bio,
+      updatedAt: new Date()
+    };
+
+    if (useMongo) {
+      await UserProfile.findOneAndUpdate({ uid }, profileData, { upsert: true, new: true });
+    } else {
+      memoryUserProfiles.set(uid, profileData);
+    }
+
+    console.log(`[UserProfile] Synced profile globally for user: ${name} (${uid})`);
+    res.json({ success: true, profile: profileData });
+  } catch (err) {
+    console.error('[UserProfile] Sync error:', err.message);
+    res.status(500).json({ error: 'Failed to sync user profile' });
+  }
+});
+
+// DELETE /api/users/:uid - Delete user profile globally on account deletion
+app.delete('/api/users/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    if (!uid) {
+      return res.status(400).json({ error: 'uid is required' });
+    }
+
+    if (useMongo) {
+      await UserProfile.deleteOne({ uid });
+    } else {
+      memoryUserProfiles.delete(uid);
+    }
+
+    console.log(`[UserProfile] Deleted profile globally for user UID: ${uid}`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[UserProfile] Delete profile error:', err.message);
+    res.status(500).json({ error: 'Failed to delete user profile' });
+  }
 });
 
 // Backup Endpoint (Weekly Sync backup)
