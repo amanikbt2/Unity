@@ -972,9 +972,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     };
 
-    // Show initial promo after 30 seconds, then repeat every 2 minutes (120,000ms)
+    // Show initial promo after 30 seconds, then repeat every 40 seconds (40,000ms)
     setTimeout(showPromo, 30000);
-    setInterval(showPromo, 120000);
+    setInterval(showPromo, 40000);
 
     promoCloseBtn.addEventListener('click', () => hidePromo('close'));
     if (promoDownloadBtn) {
