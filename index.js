@@ -165,16 +165,27 @@ const hasImageKit = Boolean(
     process.env.IMAGEKIT_URL_ENDPOINT,
 );
 
+let useMongo = false;
+
 if (hasMongo) {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('MongoDB connected.');
+    useMongo = true;
   } catch (error) {
     console.error('MongoDB connection failed, falling back to memory store:', error.message);
   }
 }
 
-const useMongo = mongoose.connection.readyState === 1;
+mongoose.connection.on('connected', () => {
+  console.log('Mongoose connection established/restored.');
+  useMongo = true;
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('Mongoose connection disconnected.');
+  useMongo = false;
+});
 
 const imagekit = hasImageKit
   ? new ImageKit({
@@ -184,9 +195,11 @@ const imagekit = hasImageKit
     })
   : null;
 
-if (!useMongo) {
-  console.warn('Post storage running in memory mode. Set MONGODB_URI and IMAGEKIT_* env vars for persistence and cloud uploads.');
-}
+setTimeout(() => {
+  if (!useMongo) {
+    console.warn('Post storage running in memory mode. Set MONGODB_URI and IMAGEKIT_* env vars for persistence and cloud uploads.');
+  }
+}, 5000);
 
 const commentSchema = new mongoose.Schema(
   {
