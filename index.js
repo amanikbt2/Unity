@@ -167,26 +167,6 @@ const hasImageKit = Boolean(
 
 let useMongo = false;
 
-if (hasMongo) {
-  try {
-    await mongoose.connect(process.env.MONGODB_URI);
-    console.log('MongoDB connected.');
-    useMongo = true;
-  } catch (error) {
-    console.error('MongoDB connection failed, falling back to memory store:', error.message);
-  }
-}
-
-mongoose.connection.on('connected', () => {
-  console.log('Mongoose connection established/restored.');
-  useMongo = true;
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.warn('Mongoose connection disconnected.');
-  useMongo = false;
-});
-
 const imagekit = hasImageKit
   ? new ImageKit({
       publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
@@ -287,12 +267,187 @@ const userProfileSchema = new mongoose.Schema(
     flag: { type: String, default: '🇺🇸' },
     langName: { type: String, default: 'English' },
     bio: { type: String, default: 'Available on Unity' },
+    email: { type: String, default: '' },
+    authMethod: { type: String, default: 'email' },
+    location: { type: String, default: 'Unknown' },
+    appVersion: { type: String, default: '1.0.0' },
+    platform: { type: String, default: 'unknown' },
+    createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   }
 );
 const UserProfile = mongoose.models.UserProfile || mongoose.model('UserProfile', userProfileSchema);
 
+const notificationSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  type: { type: String, required: true }, // 'system' or 'chat'
+  title: { type: String, default: '' },
+  body: { type: String, default: '' },
+  icon: { type: String, default: '' }, // 'info', 'warning', 'success', 'default'
+  senderName: { type: String, default: '' },
+  senderAvatar: { type: String, default: '' },
+  createdAt: { type: Date, default: Date.now, index: true }
+});
+const NotificationModel = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
+
 const memoryUserProfiles = new Map();
+const memoryNotifications = [];
+
+// Mock User Profiles for dashboard pre-population
+const mockUser1 = {
+  uid: 'user_google_1',
+  name: 'Alex Rivera',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80',
+  flag: '🇺🇸',
+  langName: 'English (US)',
+  bio: 'Learning Spanish and German!',
+  email: 'alex.rivera@gmail.com',
+  authMethod: 'google',
+  location: 'San Francisco, USA',
+  appVersion: '1.0.5',
+  platform: 'android',
+  createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+  updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+};
+
+const mockUser2 = {
+  uid: 'user_google_2',
+  name: 'Sofia Müller',
+  avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80',
+  flag: '🇩🇪',
+  langName: 'German (Germany)',
+  bio: 'Hallo! Let\'s practice speaking.',
+  email: 'sofia.muller@gmail.com',
+  authMethod: 'google',
+  location: 'Berlin, Germany',
+  appVersion: '1.0.5',
+  platform: 'ios',
+  createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+  updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+};
+
+const mockUser3 = {
+  uid: 'user_email_3',
+  name: 'Jean Dupont',
+  avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80',
+  flag: '🇫🇷',
+  langName: 'French (France)',
+  bio: 'Passionate about culinary arts.',
+  email: 'jean.dupont@outlook.com',
+  authMethod: 'email',
+  location: 'Paris, France',
+  appVersion: '1.0.2',
+  platform: 'web',
+  createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+  updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+};
+
+memoryUserProfiles.set(mockUser1.uid, mockUser1);
+memoryUserProfiles.set(mockUser2.uid, mockUser2);
+memoryUserProfiles.set(mockUser3.uid, mockUser3);
+
+function flagToCountry(flag) {
+  const map = {
+    '🇺🇸': 'United States',
+    '🇬🇧': 'United Kingdom',
+    '🇫🇷': 'France',
+    '🇩🇪': 'Germany',
+    '🇪🇸': 'Spain',
+    '🇯🇵': 'Japan',
+    '🇮🇹': 'Italy',
+    '🇨🇳': 'China',
+    '🇰🇷': 'South Korea',
+    '🇮🇳': 'India',
+    '🇨🇦': 'Canada',
+    '🇧🇷': 'Brazil',
+    '🇲🇽': 'Mexico',
+    '🌍': 'Unknown'
+  };
+  return map[flag] || 'Unknown';
+}
+
+async function seedUserProfiles() {
+  try {
+    const count = await UserProfile.countDocuments();
+    if (count === 0) {
+      const mockUsers = [
+        {
+          uid: 'user_google_1',
+          name: 'Alex Rivera',
+          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80',
+          flag: '🇺🇸',
+          langName: 'English (US)',
+          bio: 'Learning Spanish and German!',
+          email: 'alex.rivera@gmail.com',
+          authMethod: 'google',
+          location: 'San Francisco, USA',
+          appVersion: '1.0.5',
+          platform: 'android',
+          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
+          updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+        },
+        {
+          uid: 'user_google_2',
+          name: 'Sofia Müller',
+          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80',
+          flag: '🇩🇪',
+          langName: 'German (Germany)',
+          bio: 'Hallo! Let\'s practice speaking.',
+          email: 'sofia.muller@gmail.com',
+          authMethod: 'google',
+          location: 'Berlin, Germany',
+          appVersion: '1.0.5',
+          platform: 'ios',
+          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+          updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+        },
+        {
+          uid: 'user_email_3',
+          name: 'Jean Dupont',
+          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80',
+          flag: '🇫🇷',
+          langName: 'French (France)',
+          bio: 'Passionate about culinary arts.',
+          email: 'jean.dupont@outlook.com',
+          authMethod: 'email',
+          location: 'Paris, France',
+          appVersion: '1.0.2',
+          platform: 'web',
+          createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
+          updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+        }
+      ];
+      await UserProfile.create(mockUsers);
+      console.log('[Seeding] Seeded database with mock user profiles.');
+    }
+  } catch (err) {
+    console.error('[Seeding] Failed to seed mock user profiles:', err.message);
+  }
+}
+
+// Database connection and seeding initialization
+if (hasMongo) {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('MongoDB connected.');
+    useMongo = true;
+    await seedUserProfiles();
+  } catch (error) {
+    console.error('MongoDB connection failed, falling back to memory store:', error.message);
+  }
+}
+
+mongoose.connection.on('connected', async () => {
+  console.log('Mongoose connection established/restored.');
+  useMongo = true;
+  await seedUserProfiles();
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.warn('Mongoose connection disconnected.');
+  useMongo = false;
+});
+
 
 // In-memory fallback when MongoDB is unavailable
 const memoryLogs = [];
@@ -869,10 +1024,44 @@ app.get('/api/explore', async (req, res) => {
 // POST /api/users - Create or update a user profile globally
 app.post('/api/users', async (req, res) => {
   try {
-    const { uid, name, avatar = '', flag = '🇺🇸', langName = 'English', bio = 'Available on Unity' } = req.body;
+    const { 
+      uid, 
+      name, 
+      avatar = '', 
+      flag = '🇺🇸', 
+      langName = 'English', 
+      bio = 'Available on Unity',
+      email,
+      authMethod,
+      location,
+      appVersion,
+      platform
+    } = req.body;
+    
     if (!uid || !name) {
       return res.status(400).json({ error: 'uid and name are required' });
     }
+
+    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const derivedEmail = email || `${cleanName || uid}@example.com`;
+    
+    let derivedAuthMethod = authMethod || 'email';
+    if (uid.toLowerCase().includes('google')) derivedAuthMethod = 'google';
+    else if (uid.toLowerCase().includes('apple')) derivedAuthMethod = 'apple';
+    
+    const derivedLocation = location || flagToCountry(flag);
+    const derivedAppVersion = appVersion || '1.0.0';
+    const derivedPlatform = platform || 'unknown';
+
+    // Query existing to maintain original createdAt timestamp
+    let existingUser = null;
+    if (useMongo) {
+      existingUser = await UserProfile.findOne({ uid }).lean();
+    } else {
+      existingUser = memoryUserProfiles.get(uid);
+    }
+    
+    const derivedCreatedAt = existingUser ? (existingUser.createdAt || existingUser.createdAtDate || new Date()) : new Date();
 
     const profileData = {
       uid,
@@ -881,6 +1070,12 @@ app.post('/api/users', async (req, res) => {
       flag,
       langName,
       bio,
+      email: derivedEmail,
+      authMethod: derivedAuthMethod,
+      location: derivedLocation,
+      appVersion: derivedAppVersion,
+      platform: derivedPlatform,
+      createdAt: derivedCreatedAt,
       updatedAt: new Date()
     };
 
@@ -1057,6 +1252,87 @@ app.delete('/api/admin/logs/clear', async (req, res) => {
     res.status(500).json({ error: 'Failed to clear logs' });
   }
 });
+
+app.get('/api/admin/users', async (req, res) => {
+  try {
+    let users = [];
+    if (useMongo) {
+      users = await UserProfile.find().sort({ createdAt: -1 }).lean();
+    } else {
+      users = Array.from(memoryUserProfiles.values()).sort((a, b) => b.createdAt - a.createdAt);
+    }
+    
+    const formattedUsers = users.map(user => ({
+      uid: user.uid,
+      name: user.name,
+      avatar: user.avatar,
+      flag: user.flag,
+      langName: user.langName,
+      bio: user.bio,
+      email: user.email || `${user.name.toLowerCase().replace(/[^a-z0-9]/g, '') || user.uid}@example.com`,
+      authMethod: user.authMethod || (user.uid.toLowerCase().includes('google') ? 'google' : (user.uid.toLowerCase().includes('apple') ? 'apple' : 'email')),
+      location: user.location || flagToCountry(user.flag),
+      appVersion: user.appVersion || '1.0.0',
+      platform: user.platform || 'unknown',
+      createdAt: user.createdAt || user.createdAtDate || user.updatedAt || new Date()
+    }));
+
+    res.json({ success: true, count: formattedUsers.length, users: formattedUsers });
+  } catch (err) {
+    console.error('Failed to fetch admin users:', err);
+    res.status(500).json({ error: 'Failed to fetch user profiles' });
+  }
+});
+
+app.post('/api/admin/notifications', async (req, res) => {
+  try {
+    const { type, title, body, icon, senderName, senderAvatar } = req.body;
+    if (!type || !body) {
+      return res.status(400).json({ error: 'type and body are required' });
+    }
+
+    const newNotif = {
+      id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      type,
+      title: title || '',
+      body,
+      icon: icon || 'default',
+      senderName: senderName || '',
+      senderAvatar: senderAvatar || '',
+      createdAt: new Date()
+    };
+
+    if (useMongo) {
+      await NotificationModel.create(newNotif);
+    } else {
+      memoryNotifications.unshift(newNotif);
+      if (memoryNotifications.length > 50) memoryNotifications.length = 50;
+    }
+
+    console.log(`[Notification] Created campaign: type=${type}, body="${body}"`);
+    res.json({ success: true, notification: newNotif });
+  } catch (err) {
+    console.error('Failed to create notification campaign:', err);
+    res.status(500).json({ error: 'Failed to create notification campaign' });
+  }
+});
+
+app.get('/api/notifications', async (req, res) => {
+  try {
+    let latest = null;
+    if (useMongo) {
+      latest = await NotificationModel.findOne().sort({ createdAt: -1 }).lean();
+    } else {
+      latest = memoryNotifications[0] || null;
+    }
+    res.json({ success: true, latest });
+  } catch (err) {
+    console.error('Failed to poll latest notification:', err);
+    res.status(500).json({ error: 'Failed to fetch latest notification' });
+  }
+});
+
+
 
 
 app.get('/api/admin/logs/stream', (req, res) => {
@@ -1269,6 +1545,34 @@ app.post('/api/logs', async (req, res) => {
     } else {
       memoryLogs.unshift(entry);
       if (memoryLogs.length > 1000) memoryLogs.length = 1000; // cap in-memory
+    }
+
+    // Auto-enrich corresponding UserProfile with client log details on login_success
+    if (event === 'login_success' && email) {
+      const updates = {
+        email,
+        authMethod: method || 'email',
+        appVersion,
+        platform
+      };
+      try {
+        if (useMongo) {
+          await UserProfile.findOneAndUpdate(
+            { email: email },
+            { $set: updates },
+            { new: true }
+          );
+        } else {
+          for (const [uid, profile] of memoryUserProfiles.entries()) {
+            if (profile.email === email || profile.uid === userLabel) {
+              memoryUserProfiles.set(uid, { ...profile, ...updates });
+              break;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[ActivityLog] Failed to auto-enrich user profile:', err.message);
+      }
     }
 
     console.log(`[ActivityLog] ${entry.createdAt.toISOString()} | ${event} | ${userLabel} | ${platform} | ${error || 'ok'}`);

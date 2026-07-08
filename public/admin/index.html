@@ -816,6 +816,175 @@
       z-index: -1;
       opacity: 0.15;
     }
+
+    /* Users List Tab styling */
+    .users-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 20px;
+      padding: 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    
+    .user-card {
+      background: rgba(18, 12, 36, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .user-card:hover {
+      border-color: var(--border-glow);
+      box-shadow: 0 8px 30px rgba(139, 92, 246, 0.15);
+      transform: translateY(-2px);
+      background: rgba(18, 12, 36, 0.65);
+    }
+    
+    .user-card-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .user-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+      flex-shrink: 0;
+    }
+    
+    .user-primary-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      overflow: hidden;
+    }
+    
+    .user-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .user-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .user-flag {
+      font-size: 14px;
+      line-height: 1;
+    }
+    
+    .user-email-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    
+    .user-email {
+      font-size: 12px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    
+    .auth-badge {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+    
+    .auth-google {
+      background: rgba(239, 68, 68, 0.12);
+      color: #F87171;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+    
+    .auth-apple {
+      background: rgba(255, 255, 255, 0.08);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    
+    .auth-email {
+      background: rgba(139, 92, 246, 0.12);
+      color: var(--primary);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    
+    /* Accordion Details dropdown */
+    .user-card-details {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 0 20px;
+    }
+    
+    .user-card.expanded .user-card-details {
+      max-height: 280px;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+    }
+    
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      font-size: 13px;
+      font-family: 'Outfit', sans-serif;
+    }
+    
+    .details-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    
+    .details-label {
+      color: var(--text-muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+    }
+    
+    .details-value {
+      color: var(--text);
+      font-weight: 500;
+    }
+    
+    .details-bio {
+      grid-column: span 2;
+      border-top: 1px dashed rgba(255, 255, 255, 0.04);
+      padding-top: 10px;
+      margin-top: 4px;
+      font-style: italic;
+      color: #CBD5E1;
+    }
   </style>
 </head>
 <body>
@@ -832,6 +1001,8 @@
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('analytics')">App Analytics</button>
       <button class="tab-btn" onclick="switchTab('updates')">Send Updates</button>
+      <button class="tab-btn" onclick="switchTab('users')">Users List</button>
+      <button class="tab-btn" onclick="switchTab('notifications')">Push Notifications</button>
     </div>
   </header>
 
@@ -1033,6 +1204,117 @@
     </div>
   </div>
 
+  <!-- Users View -->
+  <div id="users-view" class="view-section">
+    <div class="main-content" style="padding-top: 24px;">
+      <div class="terminal-container">
+        <div class="terminal-header">
+          <div class="terminal-left">
+            <div class="window-dots">
+              <div class="dot red"></div>
+              <div class="dot yellow"></div>
+              <div class="dot green"></div>
+            </div>
+            <div class="terminal-title">Users Directory</div>
+            <div class="log-counter-badge" id="users-counter">0 users</div>
+          </div>
+          <div class="terminal-right">
+            <!-- Users Smart Search Bar -->
+            <div class="search-box">
+              <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="users-search" placeholder="Search users by name, email..." oninput="handleUsersSearchInput()">
+              <span class="search-clear" id="users-search-clear-btn" onclick="clearUsersSearch()">&times;</span>
+            </div>
+          </div>
+        </div>
+        <!-- Users Card Grid -->
+        <div class="users-grid" id="users-grid">
+          <div style="color:var(--text-muted); text-align:center; padding:30px; grid-column: 1/-1;">Loading users directory...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notifications View -->
+  <div id="notifications-view" class="view-section">
+    <div class="main-content" style="padding-top: 24px;">
+      <div class="notifications-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        
+        <!-- System Notification Form -->
+        <div class="terminal-container" style="padding: 24px;">
+          <div class="terminal-header" style="margin: -24px -24px 20px -24px;">
+            <div class="terminal-left">
+              <div class="window-dots">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+              </div>
+              <div class="terminal-title">System Alert Campaign</div>
+            </div>
+          </div>
+          <form id="system-notif-form" onsubmit="sendSystemNotification(event)">
+            <div class="form-group">
+              <label>Alert Title</label>
+              <input type="text" id="sys-title" required placeholder="e.g. System Update Completed">
+            </div>
+            <div class="form-group">
+              <label>Alert Body Message</label>
+              <textarea id="sys-body" required placeholder="Describe the alert message details..." rows="4"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Alert Icon Style</label>
+              <select id="sys-icon" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px; width: 100%; height: auto;">
+                <option value="default" style="background:#0f0a1c;">📢 Default App Logo</option>
+                <option value="info" style="background:#0f0a1c;">ℹ️ Information Badge</option>
+                <option value="success" style="background:#0f0a1c;">✅ Success Checkmark</option>
+                <option value="warning" style="background:#0f0a1c;">⚠️ Warning Alert</option>
+              </select>
+            </div>
+            <button type="submit" class="btn" id="sys-submit-btn" style="margin-top: 20px; width: 100%;">Dispatch System Alert</button>
+          </form>
+        </div>
+
+        <!-- Simulated Chat Notification Form -->
+        <div class="terminal-container" style="padding: 24px;">
+          <div class="terminal-header" style="margin: -24px -24px 20px -24px;">
+            <div class="terminal-left">
+              <div class="window-dots">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+              </div>
+              <div class="terminal-title">Simulated Chat Notification</div>
+            </div>
+          </div>
+          <form id="chat-notif-form" onsubmit="sendChatNotification(event)">
+            <div class="form-group">
+              <label>Sender Username</label>
+              <input type="text" id="chat-sender" required placeholder="e.g. Sarah Jenkins">
+            </div>
+            <div class="form-group">
+              <label>Sender Avatar URL</label>
+              <input type="url" id="chat-avatar" placeholder="Paste image link, or leave blank for random avatar">
+              <div style="margin-top: 6px; display: flex; gap: 8px;">
+                <button type="button" class="btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="setPresetAvatar('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100')">Avatar 1</button>
+                <button type="button" class="btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="setPresetAvatar('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100')">Avatar 2</button>
+                <button type="button" class="btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="setPresetAvatar('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100')">Avatar 3</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Simulated Message Body</label>
+              <textarea id="chat-body" required placeholder="Type the message content..." rows="3"></textarea>
+            </div>
+            <button type="submit" class="btn" id="chat-submit-btn" style="margin-top: 20px; width: 100%; --primary: var(--accent); --primary-glow: var(--accent-glow);">Dispatch Chat Alert</button>
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <!-- Replies Modal -->
   <div class="modal-overlay" id="replies-modal" onclick="if(event.target===this) this.style.display='none'">
     <div class="modal-content">
@@ -1049,6 +1331,8 @@
   <script>
     let allLogs = [];
     let activeSearchKeyword = '';
+    let allUsers = [];
+    let activeUsersSearchKeyword = '';
 
     function switchTab(tabId) {
       document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
@@ -1056,6 +1340,7 @@
       document.getElementById(`${tabId}-view`).classList.add('active');
       event.target.classList.add('active');
       if (tabId === 'updates') loadPopups();
+      if (tabId === 'users') loadUsers();
     }
 
     // Fetch metric counts dynamically
@@ -1421,6 +1706,219 @@
         `).join('');
       } catch (err) {
         body.innerHTML = '<div style="color:var(--danger); text-align:center; padding:20px;">Failed to retrieve replies.</div>';
+      }
+    }
+
+    // --- Users Directory APIs and UI Handlers ---
+
+    async function loadUsers() {
+      const grid = document.getElementById('users-grid');
+      grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px; grid-column: 1/-1;">Loading users directory...</div>';
+      
+      try {
+        const res = await fetch('/api/admin/users');
+        const data = await res.json();
+        if (res.ok) {
+          allUsers = data.users || [];
+          renderUsers();
+        } else {
+          grid.innerHTML = '<div style="color:var(--danger); text-align:center; padding:40px; grid-column: 1/-1;">Failed to load user directory.</div>';
+        }
+      } catch (err) {
+        console.error(err);
+        grid.innerHTML = '<div style="color:var(--danger); text-align:center; padding:40px; grid-column: 1/-1;">Connection error loading directory.</div>';
+      }
+    }
+
+    function renderUsers() {
+      const grid = document.getElementById('users-grid');
+      grid.innerHTML = '';
+      
+      let filteredUsers = allUsers;
+      if (activeUsersSearchKeyword) {
+        const kw = activeUsersSearchKeyword.toLowerCase();
+        filteredUsers = allUsers.filter(u => {
+          return (u.name || '').toLowerCase().includes(kw) || 
+                 (u.email || '').toLowerCase().includes(kw) || 
+                 (u.location || '').toLowerCase().includes(kw);
+        });
+      }
+      
+      document.getElementById('users-counter').innerText = `${filteredUsers.length} user${filteredUsers.length !== 1 ? 's' : ''}`;
+      
+      if (filteredUsers.length === 0) {
+        grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px; grid-column: 1/-1;">No users matching search query.</div>';
+        return;
+      }
+      
+      filteredUsers.forEach(u => {
+        const card = document.createElement('div');
+        card.className = 'user-card';
+        card.id = `user-card-${u.uid}`;
+        
+        // Handle avatar fallback
+        const avatarSrc = u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80';
+        
+        // Format joined date
+        const joinedDate = new Date(u.createdAt).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+        
+        // Determine authentication badge class & label
+        let authBadgeClass = 'auth-email';
+        let authLabel = 'Email';
+        if (u.authMethod === 'google' || u.authMethod === 'google_mock') {
+          authBadgeClass = 'auth-google';
+          authLabel = 'Google';
+        } else if (u.authMethod === 'apple') {
+          authBadgeClass = 'auth-apple';
+          authLabel = 'Apple';
+        }
+        
+        // Form the HTML content for card + accordion details
+        card.innerHTML = `
+          <div class="user-card-header" onclick="toggleUserCard('${u.uid}')">
+            <img src="${avatarSrc}" class="user-avatar" onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'">
+            <div class="user-primary-info">
+              <div class="user-name-row">
+                <span class="user-name">${u.name}</span>
+                <span class="user-flag" title="${u.langName}">${u.flag}</span>
+              </div>
+              <div class="user-email-row">
+                <span class="user-email">${u.email}</span>
+                <span class="auth-badge ${authBadgeClass}">${authLabel}</span>
+              </div>
+            </div>
+          </div>
+          <div class="user-card-details">
+            <div class="details-grid">
+              <div class="details-item">
+                <span class="details-label">Date Joined</span>
+                <span class="details-value">${joinedDate}</span>
+              </div>
+              <div class="details-item">
+                <span class="details-label">Location</span>
+                <span class="details-value">${u.location}</span>
+              </div>
+              <div class="details-item">
+                <span class="details-label">App Version</span>
+                <span class="details-value">v${u.appVersion}</span>
+              </div>
+              <div class="details-item">
+                <span class="details-label">Platform</span>
+                <span class="details-value" style="text-transform: capitalize;">${u.platform}</span>
+              </div>
+              <div class="details-bio">
+                <span class="details-label">Bio</span>
+                <div style="margin-top: 4px; line-height: 1.4; font-size:12px;">"${u.bio}"</div>
+              </div>
+            </div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function toggleUserCard(uid) {
+      const card = document.getElementById(`user-card-${uid}`);
+      const isExpanded = card.classList.contains('expanded');
+      
+      // Collapse all user cards
+      document.querySelectorAll('.user-card').forEach(c => {
+        c.classList.remove('expanded');
+      });
+      
+      // Expand target card if it wasn't already expanded
+      if (!isExpanded) {
+        card.classList.add('expanded');
+      }
+    }
+
+    function handleUsersSearchInput() {
+      const input = document.getElementById('users-search');
+      activeUsersSearchKeyword = input.value.trim();
+      
+      const clearBtn = document.getElementById('users-search-clear-btn');
+      clearBtn.style.display = activeUsersSearchKeyword ? 'inline' : 'none';
+      
+      renderUsers();
+    }
+    
+    function clearUsersSearch() {
+      const input = document.getElementById('users-search');
+      input.value = '';
+      activeUsersSearchKeyword = '';
+      document.getElementById('users-search-clear-btn').style.display = 'none';
+      renderUsers();
+    }
+
+    function setPresetAvatar(url) {
+      document.getElementById('chat-avatar').value = url;
+    }
+
+    async function sendSystemNotification(e) {
+      e.preventDefault();
+      const btn = document.getElementById('sys-submit-btn');
+      btn.innerText = 'Dispatching alert...';
+      btn.disabled = true;
+
+      const payload = {
+        type: 'system',
+        title: document.getElementById('sys-title').value,
+        body: document.getElementById('sys-body').value,
+        icon: document.getElementById('sys-icon').value
+      };
+
+      try {
+        const res = await fetch('/api/admin/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          document.getElementById('system-notif-form').reset();
+          alert('System alert notification dispatched successfully!');
+        } else {
+          alert('Failed to dispatch system alert');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error dispatching system alert');
+      } finally {
+        btn.innerText = 'Dispatch System Alert';
+        btn.disabled = false;
+      }
+    }
+
+    async function sendChatNotification(e) {
+      e.preventDefault();
+      const btn = document.getElementById('chat-submit-btn');
+      btn.innerText = 'Dispatching message...';
+      btn.disabled = true;
+
+      const payload = {
+        type: 'chat',
+        senderName: document.getElementById('chat-sender').value,
+        senderAvatar: document.getElementById('chat-avatar').value,
+        body: document.getElementById('chat-body').value
+      };
+
+      try {
+        const res = await fetch('/api/admin/notifications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (res.ok) {
+          document.getElementById('chat-notif-form').reset();
+          alert('Chat message notification dispatched successfully!');
+        } else {
+          alert('Failed to dispatch chat message alert');
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error dispatching chat message alert');
+      } finally {
+        btn.innerText = 'Dispatch Chat Alert';
+        btn.disabled = false;
       }
     }
   </script>
