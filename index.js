@@ -86,6 +86,34 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+const activeSessions = new Map();
+
+// Middleware to track active client sessions for the currently online counter
+app.use((req, res, next) => {
+  if (req.path.startsWith('/admin') || req.path.startsWith('/api/admin')) {
+    return next();
+  }
+
+  let userKey = null;
+  if (req.body) {
+    if (req.body.email) userKey = req.body.email;
+    else if (req.body.uid) userKey = req.body.uid;
+    else if (req.body.userLabel && req.body.userLabel !== 'guest') userKey = req.body.userLabel;
+  }
+  if (!userKey && req.query) {
+    if (req.query.email) userKey = req.query.email;
+  }
+  if (!userKey) {
+    const headerEmail = req.headers['x-user-email'];
+    if (headerEmail) userKey = headerEmail;
+  }
+
+  if (userKey) {
+    activeSessions.set(userKey, Date.now());
+  }
+  next();
+});
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -1209,6 +1237,22 @@ app.post('/api/track', (req, res) => {
 
 app.get('/api/admin/stats', async (req, res) => {
   try {
+    let totalRegistered = 0;
+    if (useMongo) {
+      totalRegistered = await UserProfile.countDocuments();
+    } else {
+      totalRegistered = memoryUserProfiles.size;
+    }
+
+    // Clean up active sessions older than 5 minutes
+    const now = Date.now();
+    for (const [userId, ts] of activeSessions.entries()) {
+      if (now - ts > 300000) {
+        activeSessions.delete(userId);
+      }
+    }
+    const totalOnline = totalRegistered > 0 ? Math.max(1, activeSessions.size) : 0;
+
     let totalLogs = adminLogQueue.length;
     if (useMongo) {
       totalLogs = await ActivityLog.countDocuments();
@@ -1218,15 +1262,20 @@ app.get('/api/admin/stats', async (req, res) => {
       totalPopups = await Popup.countDocuments();
     }
     res.json({
-      totalRegistered: 1248,
-      totalOnline: Math.floor(Math.random() * 50) + 10,
+      totalRegistered,
+      totalOnline,
       totalLogs,
       totalPopups
     });
   } catch (err) {
+    let totalRegistered = 0;
+    try {
+      totalRegistered = useMongo ? await UserProfile.countDocuments() : memoryUserProfiles.size;
+    } catch (_) {}
+
     res.json({
-      totalRegistered: 1248,
-      totalOnline: Math.floor(Math.random() * 50) + 10,
+      totalRegistered: totalRegistered || 0,
+      totalOnline: activeSessions.size,
       totalLogs: adminLogQueue.length,
       totalPopups: memoryStore.popups.length
     });
