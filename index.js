@@ -300,6 +300,12 @@ const userProfileSchema = new mongoose.Schema(
     location: { type: String, default: 'Unknown' },
     appVersion: { type: String, default: '1.0.0' },
     platform: { type: String, default: 'unknown' },
+    nativeLang: { type: String, default: 'en' },
+    unityAILang: { type: String, default: 'es' },
+    phone: { type: String, default: '' },
+    nativeLangSelected: { type: Boolean, default: false },
+    voiceAITrained: { type: Boolean, default: false },
+    micTested: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   }
@@ -1063,7 +1069,13 @@ app.post('/api/users', async (req, res) => {
       authMethod,
       location,
       appVersion,
-      platform
+      platform,
+      nativeLang = 'en',
+      unityAILang = 'es',
+      phone = '',
+      nativeLangSelected = false,
+      voiceAITrained = false,
+      micTested = false
     } = req.body;
     
     if (!uid || !name) {
@@ -1103,6 +1115,12 @@ app.post('/api/users', async (req, res) => {
       location: derivedLocation,
       appVersion: derivedAppVersion,
       platform: derivedPlatform,
+      nativeLang,
+      unityAILang,
+      phone,
+      nativeLangSelected,
+      voiceAITrained,
+      micTested,
       createdAt: derivedCreatedAt,
       updatedAt: new Date()
     };
@@ -1118,6 +1136,39 @@ app.post('/api/users', async (req, res) => {
   } catch (err) {
     console.error('[UserProfile] Sync error:', err.message);
     res.status(500).json({ error: 'Failed to sync user profile' });
+  }
+});
+
+// GET /api/users/email/:email - Check if user exists by email and return their profile
+app.get('/api/users/email/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ error: 'email parameter is required' });
+    }
+    const targetEmail = email.trim().toLowerCase();
+    
+    let user = null;
+    if (useMongo) {
+      // Escape regex special characters
+      const escapedEmail = targetEmail.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      user = await UserProfile.findOne({ email: new RegExp('^' + escapedEmail + '$', 'i') }).lean();
+    } else {
+      user = Array.from(memoryUserProfiles.values()).find(
+        u => u.email && u.email.trim().toLowerCase() === targetEmail
+      );
+    }
+    
+    if (user) {
+      console.log(`[UserProfile] Found existing profile by email: ${user.name} (${user.email})`);
+      res.json({ success: true, exists: true, user });
+    } else {
+      console.log(`[UserProfile] No profile found for email: ${targetEmail}`);
+      res.json({ success: true, exists: false });
+    }
+  } catch (err) {
+    console.error('[UserProfile] Get by email error:', err.message);
+    res.status(500).json({ error: 'Failed to retrieve user profile by email' });
   }
 });
 
