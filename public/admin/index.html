@@ -133,7 +133,7 @@
       display: none;
       flex: 1;
       flex-direction: column;
-      overflow: hidden;
+      overflow-y: auto;
     }
 
     .view-section.active {
@@ -224,7 +224,7 @@
       display: flex;
       flex-direction: column;
       padding: 0 40px 24px 40px;
-      overflow: hidden;
+      overflow: visible;
     }
 
     .terminal-container {
@@ -514,13 +514,48 @@
       overflow: hidden;
       max-height: 0;
       opacity: 0;
-      transition: max-height 0.25s ease, opacity 0.2s ease, margin 0.2s ease;
+      transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.2s ease;
       margin-top: 0;
     }
     .audience-email-row.visible {
-      max-height: 60px;
+      max-height: 80px;
       opacity: 1;
       margin-top: 10px;
+    }
+
+    /* Styled Email Target Input */
+    .email-target-wrapper {
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      transition: all 0.3s;
+      overflow: hidden;
+    }
+    .email-target-wrapper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);
+    }
+    .email-target-icon {
+      padding: 10px 0 10px 12px;
+      color: var(--accent);
+      font-size: 14px;
+      opacity: 0.8;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .email-target-wrapper input[type="email"] {
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      padding: 10px 12px 10px 8px;
+      flex: 1;
+      min-width: 0;
+    }
+    .email-target-wrapper input[type="email"]:focus {
+      box-shadow: none !important;
     }
 
     /* Magic Words */
@@ -602,7 +637,7 @@
       font-weight: 500;
     }
 
-    input[type="text"], input[type="url"], textarea, select {
+    input[type="text"], input[type="url"], input[type="email"], textarea, select {
       width: 100%;
       padding: 10px 14px;
       background: rgba(0, 0, 0, 0.3);
@@ -615,7 +650,7 @@
       transition: all 0.3s;
     }
 
-    input[type="text"]:focus, input[type="url"]:focus, textarea:focus, select:focus {
+    input[type="text"]:focus, input[type="url"]:focus, input[type="email"]:focus, textarea:focus, select:focus {
       border-color: var(--primary);
       box-shadow: 0 0 10px var(--primary-glow);
     }
@@ -875,6 +910,51 @@
 
     .reply-card:hover {
       border-color: rgba(255,255,255,0.1);
+    }
+
+    /* Smart Highlighter Input Overlay */
+    .smart-input-container {
+      position: relative;
+      width: 100%;
+      margin-bottom: 0;
+    }
+    .smart-input-backdrop {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: 'Outfit', sans-serif;
+      line-height: 1.5;
+      color: rgba(255, 255, 255, 0.8);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      pointer-events: none;
+      overflow: hidden;
+      border: 1px solid transparent;
+      box-sizing: border-box;
+      text-align: left;
+    }
+    .smart-input-backdrop span.highlight-bracket {
+      color: #38bdf8 !important; /* Premium Cyan Blue */
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.12);
+      border-radius: 4px;
+      padding: 1px 3px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .smart-input-container textarea, .smart-input-container input {
+      position: relative;
+      z-index: 2;
+      color: transparent !important;
+      text-shadow: none !important;
+      background: transparent !important;
+      caret-color: #fff !important;
+    }
+    .smart-input-container textarea {
+      line-height: 1.5;
     }
 
     /* Floating glowing decorative elements */
@@ -1376,7 +1456,12 @@
                 <button type="button" class="audience-btn" id="sys-specific-btn" onclick="setAudience('sys','specific')">👤 Specific User</button>
               </div>
               <div class="audience-email-row" id="sys-email-row">
-                <input type="email" id="sys-target-email" placeholder="user@example.com" style="width:100%; box-sizing:border-box;">
+                <div class="email-target-wrapper">
+                  <span class="email-target-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                  </span>
+                  <input type="email" id="sys-target-email" placeholder="Enter recipient email address...">
+                </div>
               </div>
             </div>
             <button type="submit" class="btn" id="sys-submit-btn" style="margin-top: 20px; width: 100%;">Dispatch System Alert</button>
@@ -1426,7 +1511,12 @@
                 <button type="button" class="audience-btn" id="chat-specific-btn" onclick="setAudience('chat','specific')">👤 Specific User</button>
               </div>
               <div class="audience-email-row" id="chat-email-row">
-                <input type="email" id="chat-target-email" placeholder="user@example.com" style="width:100%; box-sizing:border-box;">
+                <div class="email-target-wrapper">
+                  <span class="email-target-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                  </span>
+                  <input type="email" id="chat-target-email" placeholder="Enter recipient email address...">
+                </div>
               </div>
             </div>
             <button type="submit" class="btn" id="chat-submit-btn" style="margin-top: 20px; width: 100%; --primary: var(--accent); --primary-glow: var(--accent-glow);">Dispatch Chat Alert</button>
@@ -1989,6 +2079,8 @@
       input.value = before + word + after;
       input.focus();
       input.selectionStart = input.selectionEnd = start + word.length;
+      // Trigger smart highlight refresh
+      input.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
     function setAudience(prefix, mode) {
@@ -2010,6 +2102,61 @@
         emailInput.focus();
       }
     }
+
+    // ---- Smart Bracket Highlight System ----
+    function highlightBrackets(text) {
+      // Escape HTML, then wrap {word} tokens in highlight spans
+      const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return escaped.replace(/(\{[^}]+\})/g, '<span class="highlight-bracket">$1</span>');
+    }
+
+    function syncBackdrop(input, backdrop) {
+      backdrop.innerHTML = highlightBrackets(input.value) + '\n';
+      // Sync scroll position for textareas
+      backdrop.scrollTop = input.scrollTop;
+    }
+
+    function initSmartHighlights() {
+      // Target all inputs/textareas that have a sibling .magic-words
+      const smartIds = ['sys-title', 'sys-body', 'chat-body', 'p-title', 'p-subtopic', 'p-text'];
+      smartIds.forEach(id => {
+        const input = document.getElementById(id);
+        if (!input || input.dataset.smartInit) return;
+        input.dataset.smartInit = '1';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'smart-input-container';
+        input.parentNode.insertBefore(wrapper, input);
+        wrapper.appendChild(input);
+
+        const backdrop = document.createElement('div');
+        backdrop.className = 'smart-input-backdrop';
+        wrapper.insertBefore(backdrop, input);
+
+        // Match backdrop to textarea height if multiline
+        if (input.tagName === 'TEXTAREA') {
+          backdrop.style.whiteSpace = 'pre-wrap';
+          backdrop.style.overflowWrap = 'break-word';
+        } else {
+          backdrop.style.whiteSpace = 'nowrap';
+          backdrop.style.overflow = 'hidden';
+        }
+
+        input.addEventListener('input', () => syncBackdrop(input, backdrop));
+        input.addEventListener('scroll', () => { backdrop.scrollTop = input.scrollTop; });
+        // Initial render
+        syncBackdrop(input, backdrop);
+      });
+    }
+
+    // Initialize highlights after DOM is ready
+    setTimeout(initSmartHighlights, 300);
+    // Also re-init when switching tabs (in case elements weren't visible)
+    const origSwitchTab = switchTab;
+    switchTab = function(tabId) {
+      origSwitchTab(tabId);
+      setTimeout(initSmartHighlights, 100);
+    };
 
     async function sendSystemNotification(e) {
       e.preventDefault();
@@ -2035,6 +2182,8 @@
         if (res.ok) {
           document.getElementById('system-notif-form').reset();
           setAudience('sys', 'all');
+          // Refresh all backdrops after reset
+          document.querySelectorAll('.smart-input-backdrop').forEach(b => b.innerHTML = '');
           const label = targetEmail ? `to ${targetEmail}` : 'to all users';
           alert(`System alert dispatched ${label}!`);
         } else {
@@ -2073,6 +2222,7 @@
         if (res.ok) {
           document.getElementById('chat-notif-form').reset();
           setAudience('chat', 'all');
+          document.querySelectorAll('.smart-input-backdrop').forEach(b => b.innerHTML = '');
           const label = targetEmail ? `to ${targetEmail}` : 'to all users';
           alert(`Chat notification dispatched ${label}!`);
         } else {
