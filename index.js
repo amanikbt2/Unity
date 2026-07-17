@@ -169,6 +169,7 @@ const EXPLORE_PEOPLE = [
     flag: '🇫🇷',
     langName: 'French (France)',
     bio: 'Hi! I am a culinary chef in Paris. Let\'s exchange recipes!',
+    isUnityUser: true,
   },
   {
     id: 'e2',
@@ -177,6 +178,7 @@ const EXPLORE_PEOPLE = [
     flag: '🇯🇵',
     langName: 'Japanese (Japan)',
     bio: 'Tech enthusiast and history buff. Happy to translate and chat!',
+    isUnityUser: true,
   },
 ];
 
@@ -1024,7 +1026,8 @@ app.get('/api/explore', async (req, res) => {
         avatar: p.avatar,
         flag: p.flag,
         langName: p.langName,
-        bio: p.bio
+        bio: p.bio,
+        isUnityUser: true
       }));
     } else {
       registeredProfiles = Array.from(memoryUserProfiles.values()).map(p => ({
@@ -1033,7 +1036,8 @@ app.get('/api/explore', async (req, res) => {
         avatar: p.avatar,
         flag: p.flag,
         langName: p.langName,
-        bio: p.bio
+        bio: p.bio,
+        isUnityUser: true
       }));
     }
 
