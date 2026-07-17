@@ -1172,6 +1172,147 @@ app.get('/api/users/email/:email', async (req, res) => {
   }
 });
 
+// Active calling sessions store
+const activeCalls = new Map();
+const callAudioBuffers = new Map();
+
+// POST /api/calls/initiate - Initiate a call and send call request push notification
+app.post('/api/calls/initiate', async (req, res) => {
+  try {
+    const { callerId, partnerId, callerName, callerAvatar } = req.body;
+    if (!callerId || !partnerId) {
+      return res.status(400).json({ error: 'callerId and partnerId are required' });
+    }
+
+    const callId = `call_${Date.now()}`;
+    const callSession = {
+      id: callId,
+      callerId,
+      partnerId,
+      callerName,
+      callerAvatar,
+      status: 'ringing',
+      createdAt: Date.now()
+    };
+    activeCalls.set(callId, callSession);
+    callAudioBuffers.set(callId, []);
+
+    // Dispatch incoming call push notification to the partner
+    const token = pushTokens.get(partnerId);
+    if (token) {
+      console.log(`[Calls] Sending incoming call push notification to token associated with ${partnerId}...`);
+      sendPushNotification(token, '📞 Incoming Voice Call', `${callerName || 'Someone'} is calling you...`, {
+        type: 'incoming_call',
+        callId,
+        callerId,
+        callerName: callerName || 'Unknown Caller',
+        callerAvatar: callerAvatar || ''
+      }).catch(err => console.warn('[Calls] Push notification warning:', err.message));
+    } else {
+      console.log(`[Calls] No push token registered for target partner: ${partnerId}`);
+    }
+
+    res.json({ success: true, callId, status: 'ringing' });
+  } catch (err) {
+    console.error('[Calls] Initiate error:', err.message);
+    res.status(500).json({ error: 'Failed to initiate call' });
+  }
+});
+
+// POST /api/calls/accept - Accept the call
+app.post('/api/calls/accept', (req, res) => {
+  const { callId } = req.body;
+  const session = activeCalls.get(callId);
+  if (!session) {
+    return res.status(404).json({ error: 'Call session not found' });
+  }
+  session.status = 'connected';
+  console.log(`[Calls] Call ${callId} accepted and connected`);
+  res.json({ success: true, status: 'connected' });
+});
+
+// POST /api/calls/reject - Reject the call
+app.post('/api/calls/reject', (req, res) => {
+  const { callId } = req.body;
+  const session = activeCalls.get(callId);
+  if (!session) {
+    return res.status(404).json({ error: 'Call session not found' });
+  }
+  session.status = 'rejected';
+  console.log(`[Calls] Call ${callId} rejected`);
+  res.json({ success: true, status: 'rejected' });
+});
+
+// POST /api/calls/end - End the call
+app.post('/api/calls/end', (req, res) => {
+  const { callId } = req.body;
+  const session = activeCalls.get(callId);
+  if (session) {
+    session.status = 'ended';
+    console.log(`[Calls] Call ${callId} ended`);
+  }
+  res.json({ success: true, status: 'ended' });
+});
+
+// GET /api/calls/status/:callId - Get current status of call
+app.get('/api/calls/status/:callId', (req, res) => {
+  const { callId } = req.params;
+  const session = activeCalls.get(callId);
+  if (!session) {
+    return res.json({ success: true, status: 'ended' });
+  }
+  res.json({ success: true, status: session.status, callerId: session.callerId, partnerId: session.partnerId });
+});
+
+// GET /api/calls/poll-active/:userId - Poll for any incoming call targeting this user
+app.get('/api/calls/poll-active/:userId', (req, res) => {
+  const { userId } = req.params;
+  // Search active call sessions for any ringing call targeting this user
+  const incoming = Array.from(activeCalls.values()).find(
+    c => c.partnerId === userId && c.status === 'ringing'
+  );
+  if (incoming) {
+    res.json({ success: true, incomingCall: incoming });
+  } else {
+    res.json({ success: true, incomingCall: null });
+  }
+});
+
+// POST /api/calls/stream - Upload audio chunk
+app.post('/api/calls/stream', (req, res) => {
+  const { callId, senderId, audio } = req.body;
+  if (!callId || !senderId || !audio) {
+    return res.status(400).json({ error: 'Missing parameters' });
+  }
+
+  const buffers = callAudioBuffers.get(callId) || [];
+  buffers.push({
+    senderId,
+    audio,
+    timestamp: Date.now()
+  });
+
+  // Keep last 25 chunks
+  if (buffers.length > 25) {
+    buffers.shift();
+  }
+  callAudioBuffers.set(callId, buffers);
+  res.json({ success: true });
+});
+
+// GET /api/calls/poll-audio/:callId/:receiverId/:lastTimestamp - Poll new audio chunks
+app.get('/api/calls/poll-audio/:callId/:receiverId/:lastTimestamp', (req, res) => {
+  const { callId, receiverId, lastTimestamp } = req.params;
+  const buffers = callAudioBuffers.get(callId) || [];
+  const ts = parseInt(lastTimestamp) || 0;
+  
+  const newChunks = buffers.filter(
+    chunk => chunk.senderId !== receiverId && chunk.timestamp > ts
+  );
+  
+  res.json({ success: true, chunks: newChunks });
+});
+
 // POST /api/users/avatar - Upload profile avatar slot image to ImageKit using clean email-based filename
 app.post('/api/users/avatar', upload.single('avatar'), async (req, res) => {
   try {
