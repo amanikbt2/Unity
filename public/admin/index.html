@@ -1196,14 +1196,30 @@
           <div class="form-group">
             <label>Title</label>
             <input type="text" id="p-title" required placeholder="e.g. New Feature Alert!">
+            <div class="magic-words">
+              <span class="magic-label">✨ Magic words:</span>
+              <span class="magic-chip" onclick="insertMagicWord('p-title','{username}')"><b>{username}</b></span>
+              <span class="magic-chip" onclick="insertMagicWord('p-title','{firstname}')"><b>{firstname}</b></span>
+            </div>
           </div>
           <div class="form-group">
             <label>Subtopic</label>
             <input type="text" id="p-subtopic" placeholder="e.g. Live Translation Upgrades">
+            <div class="magic-words">
+              <span class="magic-label">✨ Magic words:</span>
+              <span class="magic-chip" onclick="insertMagicWord('p-subtopic','{username}')"><b>{username}</b></span>
+              <span class="magic-chip" onclick="insertMagicWord('p-subtopic','{firstname}')"><b>{firstname}</b></span>
+            </div>
           </div>
           <div class="form-group">
             <label>Short Description (Body)</label>
             <textarea id="p-text" required placeholder="Describe the announcement details..." rows="3"></textarea>
+            <div class="magic-words">
+              <span class="magic-label">✨ Magic words:</span>
+              <span class="magic-chip" onclick="insertMagicWord('p-text','{username}')"><b>{username}</b></span>
+              <span class="magic-chip" onclick="insertMagicWord('p-text','{firstname}')"><b>{firstname}</b></span>
+              <span class="magic-chip" onclick="insertMagicWord('p-text','{email}')"><b>{email}</b></span>
+            </div>
           </div>
           <div class="form-group">
             <label>Upload Banner Image</label>
