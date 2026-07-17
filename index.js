@@ -180,6 +180,15 @@ const EXPLORE_PEOPLE = [
     bio: 'Tech enthusiast and history buff. Happy to translate and chat!',
     isUnityUser: true,
   },
+  {
+    id: 'dev@gmail.com',
+    name: 'Mr Man',
+    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&h=300&q=80',
+    flag: '🇺🇸',
+    langName: 'English (US)',
+    bio: 'Unity App Developer | System Administrator',
+    isUnityUser: true,
+  },
 ];
 
 const memoryStore = {
@@ -382,6 +391,29 @@ memoryUserProfiles.set(mockUser1.uid, mockUser1);
 memoryUserProfiles.set(mockUser2.uid, mockUser2);
 memoryUserProfiles.set(mockUser3.uid, mockUser3);
 
+const mockUserMrMan = {
+  uid: 'dev@gmail.com',
+  name: 'Mr Man',
+  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&h=300&q=80',
+  flag: '🇺🇸',
+  langName: 'English (US)',
+  bio: 'System Administrator',
+  email: 'dev@gmail.com',
+  authMethod: 'email',
+  location: 'United States',
+  appVersion: '1.0.0',
+  platform: 'android',
+  nativeLang: 'en',
+  unityAILang: 'es',
+  phone: '+15550199',
+  nativeLangSelected: true,
+  voiceAITrained: true,
+  micTested: true,
+  createdAt: new Date(),
+  updatedAt: new Date()
+};
+memoryUserProfiles.set(mockUserMrMan.uid, mockUserMrMan);
+
 function flagToCountry(flag) {
   const map = {
     '🇺🇸': 'United States',
@@ -407,54 +439,19 @@ async function seedUserProfiles() {
     const count = await UserProfile.countDocuments();
     if (count === 0) {
       const mockUsers = [
-        {
-          uid: 'user_google_1',
-          name: 'Alex Rivera',
-          avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80',
-          flag: '🇺🇸',
-          langName: 'English (US)',
-          bio: 'Learning Spanish and German!',
-          email: 'alex.rivera@gmail.com',
-          authMethod: 'google',
-          location: 'San Francisco, USA',
-          appVersion: '1.0.5',
-          platform: 'android',
-          createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-          updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-        },
-        {
-          uid: 'user_google_2',
-          name: 'Sofia Müller',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80',
-          flag: '🇩🇪',
-          langName: 'German (Germany)',
-          bio: 'Hallo! Let\'s practice speaking.',
-          email: 'sofia.muller@gmail.com',
-          authMethod: 'google',
-          location: 'Berlin, Germany',
-          appVersion: '1.0.5',
-          platform: 'ios',
-          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-          updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
-        },
-        {
-          uid: 'user_email_3',
-          name: 'Jean Dupont',
-          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80',
-          flag: '🇫🇷',
-          langName: 'French (France)',
-          bio: 'Passionate about culinary arts.',
-          email: 'jean.dupont@outlook.com',
-          authMethod: 'email',
-          location: 'Paris, France',
-          appVersion: '1.0.2',
-          platform: 'web',
-          createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
-          updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
-        }
+        mockUser1,
+        mockUser2,
+        mockUser3
       ];
       await UserProfile.create(mockUsers);
       console.log('[Seeding] Seeded database with mock user profiles.');
+    }
+
+    // Always ensure Mr Man account exists in database
+    const mrManExists = await UserProfile.findOne({ uid: 'dev@gmail.com' });
+    if (!mrManExists) {
+      await UserProfile.create(mockUserMrMan);
+      console.log('[Seeding] Seeded Mr Man user profile in MongoDB.');
     }
   } catch (err) {
     console.error('[Seeding] Failed to seed mock user profiles:', err.message);
