@@ -1263,6 +1263,7 @@ app.get('/api/users/email/:email', async (req, res) => {
 // Active calling sessions store
 const activeCalls = new Map();
 const callAudioBuffers = new Map();
+const callSubtitles = new Map();
 
 // POST /api/calls/initiate - Initiate a call and send call request push notification
 app.post('/api/calls/initiate', async (req, res) => {
@@ -1399,6 +1400,39 @@ app.get('/api/calls/poll-audio/:callId/:receiverId/:lastTimestamp', (req, res) =
   );
   
   res.json({ success: true, chunks: newChunks });
+});
+
+// POST /api/calls/subtitles - Submit a subtitle segment (transcription + translation)
+app.post('/api/calls/subtitles', (req, res) => {
+  const { callId, senderId, text, translation } = req.body;
+  if (!callId || !senderId || !text) {
+    return res.status(400).json({ error: 'Missing parameters' });
+  }
+
+  const list = callSubtitles.get(callId) || [];
+  list.push({
+    senderId,
+    text,
+    translation: translation || '',
+    timestamp: Date.now()
+  });
+
+  // Keep last 50 subtitle items
+  if (list.length > 50) {
+    list.shift();
+  }
+  callSubtitles.set(callId, list);
+  res.json({ success: true });
+});
+
+// GET /api/calls/subtitles/:callId/:lastTimestamp - Poll new subtitles
+app.get('/api/calls/subtitles/:callId/:lastTimestamp', (req, res) => {
+  const { callId, lastTimestamp } = req.params;
+  const list = callSubtitles.get(callId) || [];
+  const ts = parseInt(lastTimestamp) || 0;
+
+  const newSubtitles = list.filter(item => item.timestamp > ts);
+  res.json({ success: true, subtitles: newSubtitles });
 });
 
 // POST /api/users/avatar - Upload profile avatar slot image to ImageKit using clean email-based filename
