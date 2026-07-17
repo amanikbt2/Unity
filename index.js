@@ -317,6 +317,7 @@ const userProfileSchema = new mongoose.Schema(
     nativeLangSelected: { type: Boolean, default: false },
     voiceAITrained: { type: Boolean, default: false },
     micTested: { type: Boolean, default: false },
+    pushToken: { type: String, default: '' },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   }
@@ -583,13 +584,61 @@ async function deleteMemoryPost(postId) {
   return null;
 }
 
-app.post('/api/register-push', (req, res) => {
+app.post('/api/register-push', async (req, res) => {
   const { userKey, token } = req.body;
-  if (userKey && token) {
-    pushTokens.set(userKey, token);
+  if (!userKey || !token) return res.json({ success: false, error: 'Missing userKey or token' });
+
+  // Always keep in-memory map for fast lookups in this process
+  pushTokens.set(userKey, token);
+
+  // Persist to MongoDB so the token survives server restarts / redeploys
+  try {
+    if (useMongo) {
+      await UserProfile.findOneAndUpdate(
+        { uid: userKey },
+        { pushToken: token, updatedAt: new Date() },
+        { upsert: false } // Only update existing profiles, don't create ghost profiles
+      );
+    } else {
+      const profile = memoryUserProfiles.get(userKey);
+      if (profile) memoryUserProfiles.set(userKey, { ...profile, pushToken: token });
+    }
+    console.log(`[Push] Token registered and persisted for: ${userKey}`);
+  } catch (err) {
+    console.warn('[Push] Failed to persist push token to DB:', err.message);
   }
+
   res.json({ success: true });
 });
+
+/**
+ * Look up the Expo push token for a given user UID.
+ * Checks in-memory map first (fastest), then falls back to MongoDB.
+ */
+async function getPushTokenForUser(uid) {
+  if (!uid) return null;
+  // 1. Check in-memory map (fastest — populated when user is online)
+  const memToken = pushTokens.get(uid);
+  if (memToken) return memToken;
+
+  // 2. Fall back to MongoDB (user may be offline / server restarted)
+  try {
+    if (useMongo) {
+      const profile = await UserProfile.findOne({ uid }).select('pushToken').lean();
+      if (profile?.pushToken) {
+        // Warm the in-memory cache so next lookup is instant
+        pushTokens.set(uid, profile.pushToken);
+        return profile.pushToken;
+      }
+    } else {
+      const profile = memoryUserProfiles.get(uid);
+      return profile?.pushToken || null;
+    }
+  } catch (err) {
+    console.warn('[Push] getPushTokenForUser DB lookup failed:', err.message);
+  }
+  return null;
+}
 
 app.post('/api/simulate-notification', async (req, res) => {
   const { userKey, type, name } = req.body;
@@ -620,6 +669,43 @@ app.post('/api/simulate-notification', async (req, res) => {
   
   await sendPushNotification(token, title, body);
   res.json({ success: true });
+});
+
+/**
+ * POST /api/push-message
+ * Called by a sender's device when they send a chat message to a partner.
+ * The backend looks up the recipient's push token (from MongoDB or memory)
+ * and forwards a push notification via the Expo Push API.
+ * This fires even when the recipient app is completely closed.
+ */
+app.post('/api/push-message', async (req, res) => {
+  try {
+    const { recipientId, senderName, messageText, type = 'chat' } = req.body;
+    if (!recipientId || !senderName) {
+      return res.status(400).json({ error: 'recipientId and senderName are required' });
+    }
+
+    const token = await getPushTokenForUser(recipientId);
+    if (!token) {
+      console.log(`[Push] No push token found for recipient: ${recipientId}`);
+      return res.json({ success: false, reason: 'no_token' });
+    }
+
+    const title = `💬 ${senderName}`;
+    const body = messageText || 'Sent you a message';
+
+    await sendPushNotification(token, title, body, {
+      type,
+      partnerId: recipientId,
+      senderName,
+    });
+
+    console.log(`[Push] Sent message notification to ${recipientId} (${senderName})`);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Push] push-message error:', err.message);
+    res.status(500).json({ error: 'Failed to send push notification' });
+  }
 });
 
 // Translate text endpoint
@@ -1200,9 +1286,9 @@ app.post('/api/calls/initiate', async (req, res) => {
     callAudioBuffers.set(callId, []);
 
     // Dispatch incoming call push notification to the partner
-    const token = pushTokens.get(partnerId);
+    const token = await getPushTokenForUser(partnerId);
     if (token) {
-      console.log(`[Calls] Sending incoming call push notification to token associated with ${partnerId}...`);
+      console.log(`[Calls] Sending incoming call push notification to ${partnerId}...`);
       sendPushNotification(token, '📞 Incoming Voice Call', `${callerName || 'Someone'} is calling you...`, {
         type: 'incoming_call',
         callId,

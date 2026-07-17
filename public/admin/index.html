@@ -523,6 +523,38 @@
       margin-top: 10px;
     }
 
+    /* Magic Words */
+    .magic-words {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 6px;
+    }
+    .magic-chip {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      border: 1px solid rgba(167,139,250,0.3);
+      background: rgba(167,139,250,0.08);
+      color: var(--primary);
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+      font-family: monospace;
+      letter-spacing: 0.3px;
+      user-select: none;
+    }
+    .magic-chip:hover {
+      background: rgba(167,139,250,0.2);
+      border-color: var(--primary);
+    }
+    .magic-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      opacity: 0.7;
+      align-self: center;
+    }
+
     /* Updates View Styling */
     .updates-layout {
       display: grid;
@@ -1295,11 +1327,22 @@
           <form id="system-notif-form" onsubmit="sendSystemNotification(event)">
             <div class="form-group">
               <label>Alert Title</label>
-              <input type="text" id="sys-title" required placeholder="e.g. System Update Completed">
+              <input type="text" id="sys-title" required placeholder="e.g. Hello {username}, check this out!">
+              <div class="magic-words">
+                <span class="magic-label">✨ Magic words:</span>
+                <span class="magic-chip" onclick="insertMagicWord('sys-title','{username}')"><b>{username}</b></span>
+                <span class="magic-chip" onclick="insertMagicWord('sys-title','{firstname}')"><b>{firstname}</b></span>
+              </div>
             </div>
             <div class="form-group">
               <label>Alert Body Message</label>
-              <textarea id="sys-body" required placeholder="Describe the alert message details..." rows="4"></textarea>
+              <textarea id="sys-body" required placeholder="e.g. Hello {username}, a new update is ready for you!" rows="4"></textarea>
+              <div class="magic-words">
+                <span class="magic-label">✨ Magic words:</span>
+                <span class="magic-chip" onclick="insertMagicWord('sys-body','{username}')"><b>{username}</b></span>
+                <span class="magic-chip" onclick="insertMagicWord('sys-body','{firstname}')"><b>{firstname}</b></span>
+                <span class="magic-chip" onclick="insertMagicWord('sys-body','{email}')"><b>{email}</b></span>
+              </div>
             </div>
             <div class="form-group">
               <label>Alert Icon Style</label>
@@ -1352,7 +1395,13 @@
             </div>
             <div class="form-group">
               <label>Simulated Message Body</label>
-              <textarea id="chat-body" required placeholder="Type the message content..." rows="3"></textarea>
+              <textarea id="chat-body" required placeholder="e.g. Hey {username}, just wanted to check in!" rows="3"></textarea>
+              <div class="magic-words">
+                <span class="magic-label">✨ Magic words:</span>
+                <span class="magic-chip" onclick="insertMagicWord('chat-body','{username}')"><b>{username}</b></span>
+                <span class="magic-chip" onclick="insertMagicWord('chat-body','{firstname}')"><b>{firstname}</b></span>
+                <span class="magic-chip" onclick="insertMagicWord('chat-body','{email}')"><b>{email}</b></span>
+              </div>
             </div>
             <div class="form-group" style="margin-top: 4px;">
               <label>Target Audience</label>
@@ -1911,6 +1960,19 @@
 
     function setPresetAvatar(url) {
       document.getElementById('chat-avatar').value = url;
+    }
+
+    function insertMagicWord(inputId, word) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const start = input.selectionStart || 0;
+      const end = input.selectionEnd || 0;
+      const text = input.value || '';
+      const before = text.substring(0, start);
+      const after = text.substring(end, text.length);
+      input.value = before + word + after;
+      input.focus();
+      input.selectionStart = input.selectionEnd = start + word.length;
     }
 
     function setAudience(prefix, mode) {
