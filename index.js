@@ -186,7 +186,7 @@ const EXPLORE_PEOPLE = [
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&h=300&q=80',
     flag: '🇺🇸',
     langName: 'English (US)',
-    bio: 'Unity App Developer | System Administrator',
+    bio: 'System Administrator',
     isUnityUser: true,
   },
 ];
@@ -331,6 +331,7 @@ const notificationSchema = new mongoose.Schema({
   icon: { type: String, default: '' }, // 'info', 'warning', 'success', 'default'
   senderName: { type: String, default: '' },
   senderAvatar: { type: String, default: '' },
+  targetEmail: { type: String, default: '' }, // '' = broadcast to all users
   createdAt: { type: Date, default: Date.now, index: true }
 });
 const NotificationModel = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
@@ -1528,7 +1529,7 @@ app.get('/api/admin/users', async (req, res) => {
 
 app.post('/api/admin/notifications', async (req, res) => {
   try {
-    const { type, title, body, icon, senderName, senderAvatar } = req.body;
+    const { type, title, body, icon, senderName, senderAvatar, targetEmail } = req.body;
     if (!type || !body) {
       return res.status(400).json({ error: 'type and body are required' });
     }
@@ -1541,6 +1542,7 @@ app.post('/api/admin/notifications', async (req, res) => {
       icon: icon || 'default',
       senderName: senderName || '',
       senderAvatar: senderAvatar || '',
+      targetEmail: (targetEmail || '').trim().toLowerCase(),
       createdAt: new Date()
     };
 
@@ -1551,7 +1553,8 @@ app.post('/api/admin/notifications', async (req, res) => {
       if (memoryNotifications.length > 50) memoryNotifications.length = 50;
     }
 
-    console.log(`[Notification] Created campaign: type=${type}, body="${body}"`);
+    const target = newNotif.targetEmail ? `→ ${newNotif.targetEmail}` : '→ all users';
+    console.log(`[Notification] Created campaign: type=${type}, target=${target}, body="${body}"`);
     res.json({ success: true, notification: newNotif });
   } catch (err) {
     console.error('Failed to create notification campaign:', err);
@@ -1561,12 +1564,23 @@ app.post('/api/admin/notifications', async (req, res) => {
 
 app.get('/api/notifications', async (req, res) => {
   try {
+    const userEmail = (req.query.email || '').trim().toLowerCase();
     let latest = null;
+
     if (useMongo) {
-      latest = await NotificationModel.findOne().sort({ createdAt: -1 }).lean();
+      // Match broadcast (empty targetEmail) OR targeted to this specific user
+      const query = userEmail
+        ? { $or: [{ targetEmail: '' }, { targetEmail: userEmail }] }
+        : { targetEmail: '' };
+      latest = await NotificationModel.findOne(query).sort({ createdAt: -1 }).lean();
     } else {
-      latest = memoryNotifications[0] || null;
+      // In-memory: find latest notification that is broadcast or targeted at this user
+      const candidates = memoryNotifications.filter(n =>
+        !n.targetEmail || n.targetEmail === userEmail
+      );
+      latest = candidates[0] || null;
     }
+
     res.json({ success: true, latest });
   } catch (err) {
     console.error('Failed to poll latest notification:', err);
