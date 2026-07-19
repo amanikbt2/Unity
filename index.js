@@ -1108,6 +1108,7 @@ app.get('/api/explore', async (req, res) => {
       const dbProfiles = await UserProfile.find().sort({ updatedAt: -1 }).lean();
       registeredProfiles = dbProfiles.map(p => ({
         id: p.uid,
+        email: p.email || '',
         name: p.name,
         avatar: p.avatar,
         flag: p.flag,
@@ -1118,6 +1119,7 @@ app.get('/api/explore', async (req, res) => {
     } else {
       registeredProfiles = Array.from(memoryUserProfiles.values()).map(p => ({
         id: p.uid,
+        email: p.email || '',
         name: p.name,
         avatar: p.avatar,
         flag: p.flag,
@@ -1127,13 +1129,17 @@ app.get('/api/explore', async (req, res) => {
       }));
     }
 
-    // De-duplicate if any UID has same ID as preset, though not likely
+    // De-duplicate explore profiles by email (falling back to id) to ensure zero duplicates
     const allProfiles = [...registeredProfiles, ...EXPLORE_PEOPLE];
     const uniqueProfiles = [];
-    const seenIds = new Set();
+    const seenKeys = new Set();
     for (const profile of allProfiles) {
-      if (!seenIds.has(profile.id)) {
-        seenIds.add(profile.id);
+      const cleanEmail = (profile.email || '').trim().toLowerCase();
+      const isPlaceholder = !cleanEmail || cleanEmail.includes('@example.com');
+      const key = isPlaceholder ? profile.id : cleanEmail;
+
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
         uniqueProfiles.push(profile);
       }
     }
@@ -1183,18 +1189,36 @@ app.post('/api/users', async (req, res) => {
     const derivedAppVersion = appVersion || '1.0.0';
     const derivedPlatform = platform || 'unknown';
 
-    // Query existing to maintain original createdAt timestamp
+    // Search for existing user profile by email first (to prevent duplicate accounts for same email)
     let existingUser = null;
-    if (useMongo) {
-      existingUser = await UserProfile.findOne({ uid }).lean();
-    } else {
-      existingUser = memoryUserProfiles.get(uid);
+    const isRealEmail = derivedEmail && !derivedEmail.includes('@example.com');
+
+    if (isRealEmail) {
+      const escapedEmail = derivedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      if (useMongo) {
+        existingUser = await UserProfile.findOne({ email: new RegExp('^' + escapedEmail + '$', 'i') }).lean();
+      } else {
+        existingUser = Array.from(memoryUserProfiles.values()).find(
+          p => p.email && p.email.toLowerCase() === derivedEmail.toLowerCase()
+        );
+      }
+    }
+
+    // Fall back to query by uid if not found by email
+    if (!existingUser) {
+      if (useMongo) {
+        existingUser = await UserProfile.findOne({ uid }).lean();
+      } else {
+        existingUser = memoryUserProfiles.get(uid);
+      }
     }
     
+    // For real users, use their normalized email as their canonical UID to ensure uniqueness
+    const canonicalUid = isRealEmail ? derivedEmail.toLowerCase() : (existingUser ? existingUser.uid : uid);
     const derivedCreatedAt = existingUser ? (existingUser.createdAt || existingUser.createdAtDate || new Date()) : new Date();
 
     const profileData = {
-      uid,
+      uid: canonicalUid,
       name,
       avatar,
       flag,
@@ -1216,12 +1240,24 @@ app.post('/api/users', async (req, res) => {
     };
 
     if (useMongo) {
-      await UserProfile.findOneAndUpdate({ uid }, profileData, { upsert: true, new: true });
+      await UserProfile.findOneAndUpdate({ uid: canonicalUid }, profileData, { upsert: true, new: true });
+      // Delete any legacy duplicate documents in MongoDB that shared the same email address
+      if (isRealEmail) {
+        const escapedEmail = derivedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        await UserProfile.deleteMany({ email: new RegExp('^' + escapedEmail + '$', 'i'), uid: { $ne: canonicalUid } });
+      }
     } else {
-      memoryUserProfiles.set(uid, profileData);
+      if (isRealEmail) {
+        for (const [k, v] of memoryUserProfiles.entries()) {
+          if (v.email && v.email.toLowerCase() === derivedEmail.toLowerCase()) {
+            memoryUserProfiles.delete(k);
+          }
+        }
+      }
+      memoryUserProfiles.set(canonicalUid, profileData);
     }
 
-    console.log(`[UserProfile] Synced profile globally for user: ${name} (${uid})`);
+    console.log(`[UserProfile] Synced profile globally for user: ${name} (${canonicalUid})`);
     res.json({ success: true, profile: profileData });
   } catch (err) {
     console.error('[UserProfile] Sync error:', err.message);
