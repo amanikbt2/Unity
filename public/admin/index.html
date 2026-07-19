@@ -1271,14 +1271,14 @@
         <form id="popup-form">
           <div class="form-group">
             <label>Title</label>
-            <input type="text" id="p-title" required placeholder="e.g. New Feature Alert!">
+            <input type="text" id="p-title" required placeholder="e.g. App Update Available">
             <div class="magic-words">
               <span class="magic-label">✨ Magic words:</span>
               <span class="magic-chip" onclick="insertMagicWord('p-title','{username}')"><b>{username}</b></span>
               <span class="magic-chip" onclick="insertMagicWord('p-title','{firstname}')"><b>{firstname}</b></span>
             </div>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="p-subtopic-container">
             <label>Subtopic</label>
             <input type="text" id="p-subtopic" placeholder="e.g. Live Translation Upgrades">
             <div class="magic-words">
@@ -1297,52 +1297,93 @@
               <span class="magic-chip" onclick="insertMagicWord('p-text','{email}')"><b>{email}</b></span>
             </div>
           </div>
-          <div class="form-group">
+
+          <!-- Display Style Selector -->
+          <div class="form-group" style="margin-bottom: 18px;">
+            <label style="font-weight: 700;">📐 Display Style</label>
+            <select id="p-display-style" onchange="toggleDisplayStyle(this.value)" style="width:100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; appearance: auto;">
+              <option value="modal">🪟 Modal Popup (full card with image & buttons)</option>
+              <option value="alert">🔔 Native Alert Popup (system-style dialog)</option>
+            </select>
+            <p style="margin: 6px 0 0; font-size: 12px; color: var(--text-muted);">Modal shows a rich in-app card. Alert shows a compact native OS dialog with action buttons.</p>
+          </div>
+
+          <!-- Alert buttons config (shown only when displayStyle = alert) -->
+          <div class="form-group" id="alert-buttons-config" style="display:none; padding: 14px; border-radius: 12px; border: 1.5px solid var(--primary); background: var(--primary-glow, rgba(79,70,229,0.06));">
+            <label style="font-weight: 700; margin-bottom: 10px; display: block;">🔘 Alert Buttons</label>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Define the buttons shown in the native alert. First button is the primary action, last is typically cancel.</p>
+            <div id="alert-buttons-list">
+              <div class="alert-btn-row" style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
+                <input type="text" class="ab-label" placeholder="Button label (e.g. Update Now)" style="flex:2; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;" value="Update Now">
+                <select class="ab-style" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;">
+                  <option value="default">Default</option>
+                  <option value="cancel">Cancel</option>
+                  <option value="destructive">Destructive</option>
+                </select>
+                <button type="button" onclick="this.closest('.alert-btn-row').remove()" style="background:none;border:none;color:var(--danger,#ef4444);cursor:pointer;font-size:18px;padding:0 4px;">×</button>
+              </div>
+              <div class="alert-btn-row" style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
+                <input type="text" class="ab-label" placeholder="Button label (e.g. Later)" style="flex:2; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;" value="Later">
+                <select class="ab-style" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;">
+                  <option value="default">Default</option>
+                  <option value="cancel" selected>Cancel</option>
+                  <option value="destructive">Destructive</option>
+                </select>
+                <button type="button" onclick="this.closest('.alert-btn-row').remove()" style="background:none;border:none;color:var(--danger,#ef4444);cursor:pointer;font-size:18px;padding:0 4px;">×</button>
+              </div>
+            </div>
+            <button type="button" onclick="addAlertButton()" style="background:none; color:var(--accent); border:none; cursor:pointer; font-size:13px; font-weight:500;">+ Add Button</button>
+          </div>
+
+          <div class="form-group" id="p-image-container">
             <label>Upload Banner Image</label>
             <input type="file" id="p-image" accept="image/*">
           </div>
-          
-          <div class="checkbox-group">
-            <input type="checkbox" id="p-important">
-            <label for="p-important">Flag as Important (Non-dismissible by 'X')</label>
-          </div>
 
-          <div class="checkbox-group">
-            <input type="checkbox" id="p-app-update" onchange="document.getElementById('p-target-version-container').style.display = this.checked ? 'block' : 'none'">
-            <label for="p-app-update">Mandatory App Update Alert (Enforces Target Version)</label>
-          </div>
-          
-          <div class="form-group" id="p-target-version-container" style="display:none; padding-left: 10px; border-left: 2px solid var(--primary);">
-            <label>Target Latest Version (Users below this version will see the pop-up)</label>
-            <input type="text" id="p-target-version" placeholder="e.g. 1.2.2">
-          </div>
-
-          <div class="checkbox-group">
-            <input type="checkbox" id="p-interactive" onchange="toggleInteractiveMode(this.checked)">
-            <label for="p-interactive" style="color: var(--accent);">Create Feedback Form (Interactive Survey)</label>
-          </div>
-
-          <!-- Interactive fields configuration -->
-          <div class="interactive-config" id="interactive-config">
-            <div class="form-group">
-              <label>Submit Button Text</label>
-              <input type="text" id="p-submit-text" placeholder="e.g. Submit Survey" value="Submit">
+          <!-- Modal-only config (hidden when displayStyle = alert) -->
+          <div id="modal-only-config">
+            <div class="checkbox-group">
+              <input type="checkbox" id="p-important">
+              <label for="p-important">Flag as Important (Non-dismissible by 'X')</label>
             </div>
-            <label style="color: var(--text); font-weight: 600; margin-bottom: 10px; display: block;">Form Fields</label>
-            <div id="form-fields-list"></div>
-            <button type="button" style="background:none; color:var(--accent); border:none; cursor:pointer; font-size:13px; font-weight: 500;" onclick="addFormField()">+ Add Input Field</button>
-          </div>
 
-          <!-- Actions button configuration -->
-          <div class="actions-config" id="actions-config">
-            <label style="color: var(--text); font-weight: 600; margin-bottom: 10px; display: block;">Call to Action Buttons (Redirect URL)</label>
-            <div id="actions-list">
-              <div class="action-row">
-                <input type="text" placeholder="Button Name (e.g. Try Now)" class="a-label">
-                <input type="url" placeholder="Redirect Link (https://...)" class="a-url">
+            <div class="checkbox-group">
+              <input type="checkbox" id="p-app-update" onchange="document.getElementById('p-target-version-container').style.display = this.checked ? 'block' : 'none'">
+              <label for="p-app-update">Mandatory App Update Alert (Enforces Target Version)</label>
+            </div>
+
+            <div class="form-group" id="p-target-version-container" style="display:none; padding-left: 10px; border-left: 2px solid var(--primary);">
+              <label>Target Latest Version (Users below this version will see the pop-up)</label>
+              <input type="text" id="p-target-version" placeholder="e.g. 1.2.2">
+            </div>
+
+            <div class="checkbox-group">
+              <input type="checkbox" id="p-interactive" onchange="toggleInteractiveMode(this.checked)">
+              <label for="p-interactive" style="color: var(--accent);">Create Feedback Form (Interactive Survey)</label>
+            </div>
+
+            <!-- Interactive fields configuration -->
+            <div class="interactive-config" id="interactive-config">
+              <div class="form-group">
+                <label>Submit Button Text</label>
+                <input type="text" id="p-submit-text" placeholder="e.g. Submit Survey" value="Submit">
               </div>
+              <label style="color: var(--text); font-weight: 600; margin-bottom: 10px; display: block;">Form Fields</label>
+              <div id="form-fields-list"></div>
+              <button type="button" style="background:none; color:var(--accent); border:none; cursor:pointer; font-size:13px; font-weight: 500;" onclick="addFormField()">+ Add Input Field</button>
             </div>
-            <button type="button" style="background:none; color:var(--accent); border:none; cursor:pointer; font-size:13px; font-weight: 500;" onclick="addActionRow()">+ Add Redirect Button</button>
+
+            <!-- Actions button configuration -->
+            <div class="actions-config" id="actions-config">
+              <label style="color: var(--text); font-weight: 600; margin-bottom: 10px; display: block;">Call to Action Buttons (Redirect URL)</label>
+              <div id="actions-list">
+                <div class="action-row">
+                  <input type="text" placeholder="Button Name (e.g. Try Now)" class="a-label">
+                  <input type="url" placeholder="Redirect Link (https://...)" class="a-url">
+                </div>
+              </div>
+              <button type="button" style="background:none; color:var(--accent); border:none; cursor:pointer; font-size:13px; font-weight: 500;" onclick="addActionRow()">+ Add Redirect Button</button>
+            </div>
           </div>
 
           <button type="submit" class="btn" id="submit-popup-btn" style="margin-top: 10px; width: 100%;">Publish Announcement</button>
@@ -1764,6 +1805,32 @@
       document.getElementById('actions-list').appendChild(row);
     }
 
+    function toggleDisplayStyle(style) {
+      const isAlert = style === 'alert';
+      // Show/hide modal-only sections
+      document.getElementById('modal-only-config').style.display = isAlert ? 'none' : 'block';
+      document.getElementById('p-subtopic-container').style.display = isAlert ? 'none' : 'block';
+      document.getElementById('p-image-container').style.display = isAlert ? 'none' : 'block';
+      // Show/hide alert buttons config
+      document.getElementById('alert-buttons-config').style.display = isAlert ? 'block' : 'none';
+    }
+
+    function addAlertButton() {
+      const row = document.createElement('div');
+      row.className = 'alert-btn-row';
+      row.style.cssText = 'display:flex; gap:8px; margin-bottom:8px; align-items:center;';
+      row.innerHTML = `
+        <input type="text" class="ab-label" placeholder="Button label" style="flex:2; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;">
+        <select class="ab-style" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;">
+          <option value="default">Default</option>
+          <option value="cancel">Cancel</option>
+          <option value="destructive">Destructive</option>
+        </select>
+        <button type="button" onclick="this.closest('.alert-btn-row').remove()" style="background:none;border:none;color:var(--danger,#ef4444);cursor:pointer;font-size:18px;padding:0 4px;">&times;</button>
+      `;
+      document.getElementById('alert-buttons-list').appendChild(row);
+    }
+
     // Load popups announcements feed
     async function loadPopups() {
       try {
@@ -1839,9 +1906,11 @@
       }
 
       const formData = new FormData();
+      const displayStyle = document.getElementById('p-display-style').value;
       formData.append('title', document.getElementById('p-title').value);
       formData.append('subtopic', document.getElementById('p-subtopic').value);
       formData.append('text', document.getElementById('p-text').value);
+      formData.append('displayStyle', displayStyle);
       formData.append('isImportant', document.getElementById('p-important').checked);
       formData.append('isAppUpdate', document.getElementById('p-app-update').checked);
       formData.append('targetVersion', document.getElementById('p-target-version').value);
@@ -1849,6 +1918,15 @@
       formData.append('submitBtnText', document.getElementById('p-submit-text').value);
       formData.append('formFields', JSON.stringify(formFields));
       formData.append('actions', JSON.stringify(actions));
+
+      // Collect alert buttons if in alert mode
+      const alertButtons = [];
+      document.querySelectorAll('.alert-btn-row').forEach(row => {
+        const label = row.querySelector('.ab-label').value.trim();
+        const style = row.querySelector('.ab-style').value;
+        if (label) alertButtons.push({ label, style });
+      });
+      formData.append('alertButtons', JSON.stringify(alertButtons));
 
       const fileInput = document.getElementById('p-image');
       if (fileInput.files.length > 0) {
@@ -1862,6 +1940,8 @@
         });
         if (res.ok) {
           e.target.reset();
+          document.getElementById('p-display-style').value = 'modal';
+          toggleDisplayStyle('modal');
           document.getElementById('actions-list').innerHTML = `
             <div class="action-row">
               <input type="text" placeholder="Button Name (e.g. Try Now)" class="a-label">

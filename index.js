@@ -258,6 +258,8 @@ const popupSchema = new mongoose.Schema(
     text: { type: String, required: true },
     imageUrl: { type: String, default: '' },
     isImportant: { type: Boolean, default: false },
+    displayStyle: { type: String, default: 'modal', enum: ['modal', 'alert'] }, // 'modal' = full card, 'alert' = native alert
+    alertButtons: { type: Array, default: [] }, // Array of { label, style } for alert mode
     actions: { type: Array, default: [] }, // Array of { label: String, url: String }
     isAppUpdate: { type: Boolean, default: false },
     targetVersion: { type: String, default: '' },
@@ -1759,7 +1761,7 @@ app.get('/api/admin/popups', async (req, res) => {
 
 app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
   try {
-    const { title, subtopic, text, isImportant, actions, isAppUpdate, targetVersion, isInteractive, submitBtnText, formFields } = req.body;
+    const { title, subtopic, text, isImportant, displayStyle, alertButtons, actions, isAppUpdate, targetVersion, isInteractive, submitBtnText, formFields } = req.body;
     let imageUrl = '';
 
     if (req.file && imagekit) {
@@ -1792,11 +1794,18 @@ app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
     }
     const newId = `pp${popupCount + 1}`;
 
+    let parsedAlertButtons = [];
+    if (alertButtons) {
+      try { parsedAlertButtons = JSON.parse(alertButtons); } catch(e) {}
+    }
+
     const newPopup = {
       id: newId,
       title,
       subtopic,
       text,
+      displayStyle: displayStyle === 'alert' ? 'alert' : 'modal',
+      alertButtons: parsedAlertButtons,
       isImportant: isImportant === 'true' || isImportant === true,
       isAppUpdate: isAppUpdate === 'true' || isAppUpdate === true,
       targetVersion: targetVersion || '',
