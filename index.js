@@ -1104,29 +1104,48 @@ app.delete('/api/posts/:postId', async (req, res) => {
 app.get('/api/explore', async (req, res) => {
   try {
     let registeredProfiles = [];
+    const now = Date.now();
+
     if (useMongo) {
       const dbProfiles = await UserProfile.find().sort({ updatedAt: -1 }).lean();
-      registeredProfiles = dbProfiles.map(p => ({
-        id: p.uid,
-        email: p.email || '',
-        name: p.name,
-        avatar: p.avatar,
-        flag: p.flag,
-        langName: p.langName,
-        bio: p.bio,
-        isUnityUser: true
-      }));
+      registeredProfiles = dbProfiles.map(p => {
+        const lastActiveTs = p.lastActive ? new Date(p.lastActive).getTime() : 0;
+        const memoryTs = activeSessions.get(p.uid) || 0;
+        const latestTs = Math.max(lastActiveTs, memoryTs);
+        // Online if pinged within the last 5 minutes (300,000 ms)
+        const isOnline = (now - latestTs) <= 300000;
+        return {
+          id: p.uid,
+          email: p.email || '',
+          name: p.name,
+          avatar: p.avatar,
+          flag: p.flag,
+          langName: p.langName,
+          bio: p.bio,
+          isUnityUser: true,
+          isOnline: isOnline,
+          lastActive: latestTs
+        };
+      });
     } else {
-      registeredProfiles = Array.from(memoryUserProfiles.values()).map(p => ({
-        id: p.uid,
-        email: p.email || '',
-        name: p.name,
-        avatar: p.avatar,
-        flag: p.flag,
-        langName: p.langName,
-        bio: p.bio,
-        isUnityUser: true
-      }));
+      registeredProfiles = Array.from(memoryUserProfiles.values()).map(p => {
+        const lastActiveTs = p.lastActive ? new Date(p.lastActive).getTime() : 0;
+        const memoryTs = activeSessions.get(p.uid) || 0;
+        const latestTs = Math.max(lastActiveTs, memoryTs);
+        const isOnline = (now - latestTs) <= 300000;
+        return {
+          id: p.uid,
+          email: p.email || '',
+          name: p.name,
+          avatar: p.avatar,
+          flag: p.flag,
+          langName: p.langName,
+          bio: p.bio,
+          isUnityUser: true,
+          isOnline: isOnline,
+          lastActive: latestTs
+        };
+      });
     }
 
     // De-duplicate explore profiles by email (falling back to id) to ensure zero duplicates
@@ -1148,6 +1167,25 @@ app.get('/api/explore', async (req, res) => {
   } catch (err) {
     console.error('Explore fetch error:', err);
     res.json(EXPLORE_PEOPLE); // fallback
+  }
+});
+
+// POST /api/users/heartbeat - Heartbeat ping to track live online status
+app.post('/api/users/heartbeat', async (req, res) => {
+  try {
+    const { uid } = req.body;
+    if (!uid) return res.status(400).json({ error: 'uid is required' });
+
+    const now = Date.now();
+    activeSessions.set(uid, now);
+
+    if (useMongo) {
+      await UserProfile.findOneAndUpdate({ uid }, { lastActive: new Date(now) }).catch(() => {});
+    }
+
+    res.json({ success: true, timestamp: now });
+  } catch (err) {
+    res.status(500).json({ error: 'Heartbeat error' });
   }
 });
 
@@ -1236,8 +1274,10 @@ app.post('/api/users', async (req, res) => {
       voiceAITrained,
       micTested,
       createdAt: derivedCreatedAt,
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      lastActive: new Date()
     };
+    activeSessions.set(canonicalUid, Date.now());
 
     if (useMongo) {
       await UserProfile.findOneAndUpdate({ uid: canonicalUid }, profileData, { upsert: true, new: true });
