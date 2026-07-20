@@ -339,8 +339,23 @@ const notificationSchema = new mongoose.Schema({
 });
 const NotificationModel = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
 
+const chatMessageSchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true, index: true },
+  senderId: { type: String, required: true, index: true },
+  recipientId: { type: String, required: true, index: true },
+  senderName: { type: String, default: '' },
+  senderAvatar: { type: String, default: '' },
+  text: { type: String, required: true },
+  transText: { type: String, default: '' },
+  origLang: { type: String, default: '' },
+  transLang: { type: String, default: '' },
+  timestamp: { type: Number, default: Date.now, index: true }
+});
+const ChatMessage = mongoose.models.ChatMessage || mongoose.model('ChatMessage', chatMessageSchema);
+
 const memoryUserProfiles = new Map();
 const memoryNotifications = [];
+const memoryChatMessages = [];
 
 // Mock User Profiles for dashboard pre-population
 const mockUser1 = {
@@ -1218,6 +1233,98 @@ app.get('/api/users/room-presence/:uid/:partnerId', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch room presence' });
+  }
+});
+
+// POST /api/messages/send - Send a chat message between users
+app.post('/api/messages/send', async (req, res) => {
+  try {
+    const { id, senderId, recipientId, senderName, senderAvatar, text, transText, origLang, transLang, timestamp } = req.body;
+    if (!senderId || !recipientId || !text) {
+      return res.status(400).json({ error: 'senderId, recipientId, and text are required' });
+    }
+
+    const msgData = {
+      id: id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      senderId,
+      recipientId,
+      senderName: senderName || 'User',
+      senderAvatar: senderAvatar || '',
+      text,
+      transText: transText || '',
+      origLang: origLang || '',
+      transLang: transLang || '',
+      timestamp: timestamp || Date.now()
+    };
+
+    if (useMongo) {
+      await ChatMessage.findOneAndUpdate({ id: msgData.id }, msgData, { upsert: true, new: true });
+    } else {
+      memoryChatMessages.push(msgData);
+    }
+
+    // Try sending push notification to recipient if token available
+    let recipientPushToken = pushTokens.get(recipientId);
+    if (!recipientPushToken && useMongo) {
+      const recipient = await UserProfile.findOne({ uid: recipientId }).lean();
+      if (recipient && recipient.pushToken) recipientPushToken = recipient.pushToken;
+    }
+
+    if (recipientPushToken) {
+      try {
+        const message = {
+          to: recipientPushToken,
+          sound: 'default',
+          title: `Message from ${senderName || 'Contact'}`,
+          body: text,
+          data: { type: 'chat', senderId, senderName, text }
+        };
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Accept-encoding': 'gzip, deflate',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(message),
+        });
+      } catch (pushErr) {
+        console.warn('[Push] Error sending push for chat message:', pushErr);
+      }
+    }
+
+    res.json({ success: true, message: msgData });
+  } catch (err) {
+    console.error('[Messages] Send error:', err);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// GET /api/messages/sync/:user1/:user2 - Sync chat history between two users
+app.get('/api/messages/sync/:user1/:user2', async (req, res) => {
+  try {
+    const { user1, user2 } = req.params;
+    const since = req.query.since ? parseInt(req.query.since, 10) : 0;
+
+    let messages = [];
+    if (useMongo) {
+      messages = await ChatMessage.find({
+        $or: [
+          { senderId: user1, recipientId: user2 },
+          { senderId: user2, recipientId: user1 }
+        ],
+        timestamp: { $gt: since }
+      }).sort({ timestamp: 1 }).lean();
+    } else {
+      messages = memoryChatMessages.filter(
+        m => ((m.senderId === user1 && m.recipientId === user2) || (m.senderId === user2 && m.recipientId === user1)) && m.timestamp > since
+      );
+    }
+
+    res.json({ success: true, messages });
+  } catch (err) {
+    console.error('[Messages] Sync error:', err);
+    res.status(500).json({ error: 'Failed to sync messages' });
   }
 });
 
