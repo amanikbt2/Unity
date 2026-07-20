@@ -1170,6 +1170,57 @@ app.get('/api/explore', async (req, res) => {
   }
 });
 
+// Track active room presence: userId -> partnerId
+const roomPresence = new Map();
+
+// POST /api/users/room-presence - Update active conversation room presence
+app.post('/api/users/room-presence', (req, res) => {
+  try {
+    const { uid, partnerId, active } = req.body;
+    if (!uid) return res.status(400).json({ error: 'uid is required' });
+
+    if (active && partnerId) {
+      roomPresence.set(uid, partnerId);
+      activeSessions.set(uid, Date.now());
+    } else {
+      roomPresence.delete(uid);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Room presence update failed' });
+  }
+});
+
+// GET /api/users/room-presence/:uid/:partnerId - Check if both users are in room and partner online status
+app.get('/api/users/room-presence/:uid/:partnerId', async (req, res) => {
+  try {
+    const { uid, partnerId } = req.params;
+    const now = Date.now();
+
+    // Check if partner is currently in the same conversation room
+    const partnerTargetRoom = roomPresence.get(partnerId);
+    const bothInRoom = partnerTargetRoom === uid;
+
+    // Check if partner is online (pinged in last 5 minutes)
+    let lastActiveTs = activeSessions.get(partnerId) || 0;
+    if (!lastActiveTs && useMongo) {
+      const dbUser = await UserProfile.findOne({ uid: partnerId }).lean();
+      if (dbUser && dbUser.lastActive) {
+        lastActiveTs = new Date(dbUser.lastActive).getTime();
+      }
+    }
+    const isOnline = (now - lastActiveTs) <= 300000;
+
+    res.json({
+      bothInRoom,
+      isOnline,
+      lastActive: lastActiveTs
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch room presence' });
+  }
+});
+
 // POST /api/users/heartbeat - Heartbeat ping to track live online status
 app.post('/api/users/heartbeat', async (req, res) => {
   try {
