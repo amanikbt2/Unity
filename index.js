@@ -195,6 +195,15 @@ const memoryStore = {
   posts: structuredClone(INITIAL_POSTS),
   popups: [], // Memory fallback for popups
   popupReplies: [], // Memory fallback for replies
+  settings: {
+    showDemoPopup: true, // Default to true
+  },
+  news: [],
+  newsStats: {
+    lastFetchTime: null,
+    lastFetchCount: 0,
+    lastFetchProvider: ''
+  }
 };
 
 const hasMongo = Boolean(process.env.MONGODB_URI);
@@ -299,6 +308,40 @@ const Post = mongoose.models.Post || mongoose.model('Post', postSchema);
 const Popup = mongoose.models.Popup || mongoose.model('Popup', popupSchema);
 const PopupReply = mongoose.models.PopupReply || mongoose.model('PopupReply', popupReplySchema);
 const ActivityLog = mongoose.models.ActivityLog || mongoose.model('ActivityLog', activityLogSchema);
+
+const newsSchema = new mongoose.Schema(
+  {
+    id: { type: String, unique: true, index: true },
+    title: { type: String, required: true },
+    slug: { type: String, default: '' },
+    summary: { type: String, default: '' },
+    fullContent: { type: String, default: '' },
+    heroImage: { type: String, default: '' },
+    galleryImages: { type: [String], default: [] },
+    publisher: { type: String, default: 'Global News' },
+    publisherAvatar: { type: String, default: '' },
+    category: { type: String, default: 'Technology' },
+    tags: { type: [String], default: [] },
+    publishedAt: { type: String, default: 'Just now' },
+    readingTime: { type: String, default: '3 min read' },
+    likes: { type: Number, default: 0 },
+    views: { type: Number, default: 0 },
+    featured: { type: Boolean, default: false },
+    breaking: { type: Boolean, default: false },
+    trending: { type: Boolean, default: false },
+    timestamp: { type: Number, default: Date.now }
+  },
+  { _id: true }
+);
+const News = mongoose.models.News || mongoose.model('News', newsSchema);
+
+const settingSchema = new mongoose.Schema(
+  {
+    key: { type: String, unique: true, index: true },
+    value: mongoose.Schema.Types.Mixed,
+  }
+);
+const Setting = mongoose.models.Setting || mongoose.model('Setting', settingSchema);
 
 const userProfileSchema = new mongoose.Schema(
   {
@@ -1964,6 +2007,45 @@ app.get('/api/admin/logs/stream', (req, res) => {
   });
 });
 
+// --- Settings APIs ---
+app.get('/api/settings', async (req, res) => {
+  try {
+    let showDemoPopup = true; // default value
+    if (useMongo) {
+      const setting = await Setting.findOne({ key: 'showDemoPopup' });
+      if (setting) {
+        showDemoPopup = setting.value === true || setting.value === 'true';
+      }
+    } else {
+      showDemoPopup = memoryStore.settings.showDemoPopup;
+    }
+    return res.json({ success: true, showDemoPopup });
+  } catch (error) {
+    console.error('Error fetching settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+app.post('/api/admin/settings', async (req, res) => {
+  try {
+    const { showDemoPopup } = req.body;
+    const isShowDemo = showDemoPopup === true || showDemoPopup === 'true';
+    if (useMongo) {
+      await Setting.findOneAndUpdate(
+        { key: 'showDemoPopup' },
+        { value: isShowDemo },
+        { upsert: true, new: true }
+      );
+    } else {
+      memoryStore.settings.showDemoPopup = isShowDemo;
+    }
+    return res.json({ success: true, showDemoPopup: isShowDemo });
+  } catch (error) {
+    console.error('Error saving settings:', error);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
 // --- Popup Advert APIs ---
 
 app.get('/api/admin/popups', async (req, res) => {
@@ -2122,6 +2204,331 @@ app.get('/api/admin/popups/:id/replies', async (req, res) => {
   } catch (error) {
     console.error('Error fetching replies:', error);
     res.status(500).json({ error: 'Failed to fetch replies' });
+  }
+});
+
+// --- News Feed APIs ---
+
+function getSafeReadingTime(text) {
+  const words = (text || "").split(/\s+/).length;
+  const mins = Math.max(1, Math.round(words / 180));
+  return `${mins} min read`;
+}
+
+app.get('/api/news', async (req, res) => {
+  try {
+    let list = [];
+    if (useMongo) {
+      list = await News.find().sort({ timestamp: -1 }).lean();
+    } else {
+      list = memoryStore.news;
+    }
+    
+    // Pre-populate if empty
+    if (list.length === 0) {
+      const initialMock = [
+        {
+          id: "news_ai_001",
+          title: "OpenAI Announces GPT-5 with Human-Level Multi-Modal Reasoning",
+          slug: "openai-gpt-5-announcement",
+          summary: "OpenAI has officially unveiled its next-generation foundation model, GPT-5, promising unprecedented capabilities in complex planning, mathematics, and live video understanding.",
+          fullContent: "OpenAI has officially announced GPT-5, the latest iteration of its flagship generative pre-trained transformer. According to internal reports, the model exhibits advanced reasoning capabilities that match or exceed human-level experts on standardized benchmarks in mathematics, coding, and logical synthesis.\n\nUnlike its predecessors, GPT-5 is natively multi-modal from inception, enabling it to process and generate real-time video, audio, and code instructions concurrently. The startup plans a gradual rollout starting next week for ChatGPT Plus subscribers, followed by developer API access.\n\nResearchers highlight that GPT-5 uses a mixture-of-experts (MoE) architecture with dynamic routing, allowing it to remain relatively cost-effective while delivering massive intelligence leaps.",
+          heroImage: "https://images.unsplash.com/photo-1677442136019-21780efad99a?q=80&w=1000&auto=format&fit=crop",
+          publisher: "TechCrunch",
+          publisherAvatar: "https://logo.clearbit.com/techcrunch.com",
+          category: "AI",
+          tags: ["OpenAI", "GPT-5", "Artificial Intelligence", "Tech News"],
+          publishedAt: "2 hours ago",
+          readingTime: "3 min read",
+          likes: 342,
+          views: 1250,
+          featured: true,
+          breaking: true,
+          trending: true,
+          timestamp: Date.now() - 7200000,
+        },
+        {
+          id: "news_android_002",
+          title: "Google Pixel 10 Leaks: Custom Tensor G5 Processor by TSMC",
+          slug: "google-pixel-10-tensor-g5-tsmc",
+          summary: "A leaked blueprint reveals that Google's upcoming Pixel 10 flagship will feature a fully custom-designed Tensor G5 chip, manufactured entirely by TSMC on a 3nm node.",
+          fullContent: "For years, Google's Tensor chips have relied partially on Samsung's designs and foundry nodes. However, newly leaked documents reveal that Google is shifting entirely to TSMC for the Tensor G5 processor, which will debut inside the Pixel 10 and Pixel 10 Pro.\n\nThis shift to TSMC's 3nm fabrication is expected to bring substantial improvements in thermal efficiency, battery life, and peak processor speeds, addressing the primary complaints of Pixel users over the past few generations. The new processor will also feature dedicated Google TPU cores optimized for running large on-device neural networks without exhausting battery reserves.\n\nIndustry experts expect the launch in early autumn, marking a major milestone for Google's silicon autonomy.",
+          heroImage: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=1000&auto=format&fit=crop",
+          publisher: "The Verge",
+          publisherAvatar: "https://logo.clearbit.com/theverge.com",
+          category: "Android",
+          tags: ["Google", "Pixel 10", "Tensor G5", "TSMC", "Android"],
+          publishedAt: "4 hours ago",
+          readingTime: "4 min read",
+          likes: 198,
+          views: 890,
+          featured: false,
+          breaking: false,
+          trending: true,
+          timestamp: Date.now() - 14400000,
+        }
+      ];
+      if (useMongo) {
+        await News.insertMany(initialMock);
+        list = await News.find().sort({ timestamp: -1 }).lean();
+      } else {
+        memoryStore.news = initialMock;
+        list = memoryStore.news;
+      }
+    }
+    
+    res.json({ success: true, news: list });
+  } catch (error) {
+    console.error('Error fetching news:', error);
+    res.status(500).json({ error: 'Failed to fetch news' });
+  }
+});
+
+app.post('/api/news', async (req, res) => {
+  try {
+    const {
+      title,
+      summary,
+      fullContent,
+      heroImage,
+      publisher = 'Admin XayLite',
+      publisherAvatar = '',
+      category = 'Technology',
+      tags = [],
+      readingTime,
+      featured = false,
+      breaking = false,
+      trending = false
+    } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: 'Title is required' });
+    }
+
+    const calculatedReadingTime = readingTime || getSafeReadingTime(fullContent || summary || '');
+    const cleanTags = Array.isArray(tags) ? tags : String(tags).split(',').map(t => t.trim()).filter(Boolean);
+    const id = `news_manual_${Date.now()}`;
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `news-${id}`;
+
+    const newArticle = {
+      id,
+      title,
+      slug,
+      summary: summary || 'No summary available.',
+      fullContent: fullContent || summary || 'No content details.',
+      heroImage: heroImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000',
+      galleryImages: [],
+      publisher,
+      publisherAvatar,
+      category,
+      tags: cleanTags,
+      publishedAt: 'Just now',
+      readingTime: calculatedReadingTime,
+      likes: 0,
+      views: 0,
+      featured: featured === true || featured === 'true',
+      breaking: breaking === true || breaking === 'true',
+      trending: trending === true || trending === 'true',
+      timestamp: Date.now()
+    };
+
+    if (useMongo) {
+      await News.create(newArticle);
+    } else {
+      memoryStore.news.unshift(newArticle);
+    }
+
+    res.json({ success: true, article: newArticle });
+  } catch (error) {
+    console.error('Error uploading news:', error);
+    res.status(500).json({ error: 'Failed to upload news' });
+  }
+});
+
+app.delete('/api/news/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (useMongo) {
+      await News.findOneAndDelete({ id });
+    } else {
+      memoryStore.news = memoryStore.news.filter(art => art.id !== id);
+    }
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting news:', error);
+    res.status(500).json({ error: 'Failed to delete news' });
+  }
+});
+
+app.get('/api/admin/news/stats', async (req, res) => {
+  try {
+    let stats = { lastFetchTime: null, lastFetchCount: 0, lastFetchProvider: '' };
+    if (useMongo) {
+      const setting = await Setting.findOne({ key: 'news_stats' });
+      if (setting && setting.value) {
+        stats = setting.value;
+      }
+    } else {
+      stats = memoryStore.newsStats;
+    }
+    res.json({ success: true, stats });
+  } catch (error) {
+    console.error('Error fetching news stats:', error);
+    res.status(500).json({ error: 'Failed to fetch news stats' });
+  }
+});
+
+app.post('/api/admin/news/fetch', async (req, res) => {
+  try {
+    const { provider = 'gnews', apiKey } = req.body;
+    let fetchedArticles = [];
+    let providerName = 'Curated XayLite Feed';
+
+    if (provider === 'gnews') {
+      providerName = 'GNews API';
+      const key = apiKey || process.env.GNEWS_API_KEY || '';
+      if (!key) {
+        return res.status(400).json({ error: 'GNews API Key is missing. Provide it in dashboard settings.' });
+      }
+
+      // Fetch AI/Technology news from GNews
+      const url = `https://gnews.io/api/v4/search?q=technology%20AI&lang=en&token=${key}`;
+      const response = await axios.get(url);
+      if (response.status === 403 || response.status === 429) {
+        return res.status(403).json({ error: 'GNews API rate limit reached.' });
+      }
+      
+      const articles = response.data.articles || [];
+      fetchedArticles = articles.map((art, idx) => {
+        const artId = `gnews_${Math.abs(idx + Date.now()).toString(36)}`;
+        return {
+          id: artId,
+          title: art.title || "API News Article",
+          slug: art.title ? art.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : `news-${artId}`,
+          summary: art.description || "No description available.",
+          fullContent: art.content || art.description || "No content details.",
+          heroImage: art.image || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000",
+          galleryImages: [],
+          publisher: art.source?.name || "Global News",
+          publisherAvatar: art.source?.name ? `https://logo.clearbit.com/${art.source.name.toLowerCase().replace(/\s+/g, '')}.com` : '',
+          category: "Technology",
+          tags: ["GNews", "Tech"],
+          publishedAt: "Just now",
+          readingTime: getSafeReadingTime(art.content || art.description || ''),
+          likes: Math.floor(10 + Math.random() * 50),
+          views: Math.floor(100 + Math.random() * 500),
+          featured: idx === 0,
+          breaking: idx === 0,
+          trending: idx < 3,
+          timestamp: Date.now() - idx * 3600000
+        };
+      });
+    } else {
+      // Curated mock provider fallback
+      providerName = 'Curated XayLite Feed';
+      fetchedArticles = [
+        {
+          id: `mock_${Date.now()}_1`,
+          title: "Silicon Savannah Leads African Tech Growth",
+          slug: "silicon-savannah-african-tech-growth",
+          summary: "Nairobi's tech hub secures significant venture capital in the latest quarter, boosting local innovators.",
+          fullContent: "Nairobi's tech ecosystem, known as the 'Silicon Savannah', continues its rapid expansion. Startups successfully raised a cumulative $450 million this quarter, targeting micro-finance, climate tech, and mobile money enhancements.\n\nWith new funding rounds closed, Nairobi now ranks as the highest funded tech ecosystem in sub-Saharan Africa, attracting local developers and engineering talent.",
+          heroImage: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=1000",
+          publisher: "Nairobi Tech Review",
+          publisherAvatar: "https://logo.clearbit.com/nation.africa",
+          category: "Kenya",
+          tags: ["Kenya", "Nairobi", "Venture Capital"],
+          publishedAt: "1 hour ago",
+          readingTime: "3 min read",
+          likes: 85,
+          views: 310,
+          featured: true,
+          breaking: false,
+          trending: true,
+          timestamp: Date.now() - 3600000
+        },
+        {
+          id: `mock_${Date.now()}_2`,
+          title: "Global Semiconductor Mega-Fab Debuts in Europe",
+          slug: "semiconductor-mega-fab-europe",
+          summary: "A consortium of top global chipmakers has finalized a deal to build a massive $50 billion semiconductor fabrication plant in Munich.",
+          fullContent: "In an effort to secure technology supply lines against potential geopolitical friction, a global semiconductor consortium has agreed to build a state-of-the-art mega-fab facility in Munich, Germany. The project is backed by a combination of public grants and corporate investments totaling $50 billion.",
+          heroImage: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000",
+          publisher: "BBC News",
+          publisherAvatar: "https://logo.clearbit.com/bbc.com",
+          category: "World",
+          tags: ["Hardware", "Semiconductors", "Munich"],
+          publishedAt: "3 hours ago",
+          readingTime: "4 min read",
+          likes: 120,
+          views: 450,
+          featured: false,
+          breaking: true,
+          trending: true,
+          timestamp: Date.now() - 10800000
+        },
+        {
+          id: `mock_${Date.now()}_3`,
+          title: "AI Safety Treaty Signed by 40 Nations",
+          slug: "ai-safety-treaty-signed",
+          summary: "A coalition of international powers adopts strict benchmarks and compliance safety rules for frontier artificial intelligence models.",
+          fullContent: "Major technology developers and global governments signed a collaborative treaty this week establishing the first unified framework for pre-deployment safety evaluation of super-intelligent systems. The framework addresses algorithmic alignment and computational resource ceilings.",
+          heroImage: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1000",
+          publisher: "TechCrunch",
+          publisherAvatar: "https://logo.clearbit.com/techcrunch.com",
+          category: "AI",
+          tags: ["AI", "Regulation", "Safety"],
+          publishedAt: "5 hours ago",
+          readingTime: "3 min read",
+          likes: 210,
+          views: 940,
+          featured: false,
+          breaking: false,
+          trending: true,
+          timestamp: Date.now() - 18000000
+        }
+      ];
+    }
+
+    // Save fetched articles to DB (deduplicate by title)
+    let savedCount = 0;
+    for (const art of fetchedArticles) {
+      if (useMongo) {
+        const exists = await News.findOne({ title: art.title });
+        if (!exists) {
+          await News.create(art);
+          savedCount++;
+        }
+      } else {
+        const exists = memoryStore.news.some(item => item.title === art.title);
+        if (!exists) {
+          memoryStore.news.unshift(art);
+          savedCount++;
+        }
+      }
+    }
+
+    // Update stats
+    const statsPayload = {
+      lastFetchTime: new Date().toLocaleString(),
+      lastFetchCount: savedCount,
+      lastFetchProvider: providerName
+    };
+
+    if (useMongo) {
+      await Setting.findOneAndUpdate(
+        { key: 'news_stats' },
+        { value: statsPayload },
+        { upsert: true, new: true }
+      );
+    } else {
+      memoryStore.newsStats = statsPayload;
+    }
+
+    res.json({ success: true, stats: statsPayload, fetched: fetchedArticles.length, saved: savedCount });
+  } catch (error) {
+    console.error('Error fetching API news:', error);
+    res.status(500).json({ error: error.message || 'Failed to fetch API news' });
   }
 });
 
