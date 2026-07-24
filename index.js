@@ -1926,6 +1926,82 @@ app.get('/api/admin/users', async (req, res) => {
   }
 });
 
+// DELETE /api/admin/users/:uid - Wipes user and all related records completely
+app.delete('/api/admin/users/:uid', async (req, res) => {
+  try {
+    const { uid } = req.params;
+    if (!uid) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    let deletedUser = null;
+    let wipedCounts = { profiles: 0, chatMessages: 0, popupReplies: 0, activityLogs: 0 };
+
+    if (useMongo) {
+      const profile = await UserProfile.findOne({ $or: [{ uid }, { email: uid }] });
+      if (profile) {
+        deletedUser = profile;
+        const targetEmail = profile.email;
+        const targetUid = profile.uid;
+
+        const userRes = await UserProfile.deleteMany({ $or: [{ uid: targetUid }, { email: targetEmail }] });
+        wipedCounts.profiles = userRes.deletedCount || 0;
+
+        const chatRes = await ChatMessage.deleteMany({
+          $or: [{ senderId: targetUid }, { recipientId: targetUid }]
+        });
+        wipedCounts.chatMessages = chatRes.deletedCount || 0;
+
+        const replyRes = await PopupReply.deleteMany({
+          $or: [{ userId: targetUid }, { email: targetEmail }]
+        });
+        wipedCounts.popupReplies = replyRes.deletedCount || 0;
+
+        const logRes = await ActivityLog.deleteMany({ userId: targetUid });
+        wipedCounts.activityLogs = logRes.deletedCount || 0;
+      }
+    }
+
+    // Clear from memory stores
+    if (memoryUserProfiles.has(uid)) {
+      deletedUser = deletedUser || memoryUserProfiles.get(uid);
+      memoryUserProfiles.delete(uid);
+      wipedCounts.profiles++;
+    }
+
+    for (const [key, p] of memoryUserProfiles.entries()) {
+      if (p.uid === uid || (p.email && p.email.toLowerCase() === uid.toLowerCase())) {
+        deletedUser = deletedUser || p;
+        memoryUserProfiles.delete(key);
+        wipedCounts.profiles++;
+      }
+    }
+
+    activeSessions.delete(uid);
+
+    for (let i = memoryChatMessages.length - 1; i >= 0; i--) {
+      const msg = memoryChatMessages[i];
+      if (msg.senderId === uid || msg.recipientId === uid) {
+        memoryChatMessages.splice(i, 1);
+        wipedCounts.chatMessages++;
+      }
+    }
+
+    const userName = deletedUser ? (deletedUser.name || deletedUser.email || uid) : uid;
+
+    console.log(`[Admin] Permanently wiped user: ${userName} (${uid})`);
+
+    res.json({
+      success: true,
+      message: `User "${userName}" has been completely wiped from the database.`,
+      wiped: wipedCounts
+    });
+  } catch (err) {
+    console.error('Failed to wipe user:', err);
+    res.status(500).json({ error: 'Failed to delete user profile and data' });
+  }
+});
+
 app.post('/api/admin/notifications', async (req, res) => {
   try {
     const { type, title, body, icon, senderName, senderAvatar, targetEmail } = req.body;

@@ -1135,6 +1135,39 @@
       color: #CBD5E1;
     }
 
+    .user-actions-row {
+      grid-column: span 2;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    
+    .delete-user-btn {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .delete-user-btn:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: #ef4444;
+      color: #ef4444;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
+    }
+
     /* Switch toggle styles */
     .switch {
       position: relative;
@@ -2559,6 +2592,16 @@
                 <div style="margin-top: 4px; line-height: 1.4; font-size:12px;">"${u.bio}"</div>
               </div>
             </div>
+            <div class="user-actions-row">
+              <button class="delete-user-btn" onclick="deleteUser('${u.uid}', '${u.name.replace(/'/g, "\\'")}')"
+                title="Permanently delete this user and all their data">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+                Delete User
+              </button>
+            </div>
           </div>
         `;
         grid.appendChild(card);
@@ -2577,6 +2620,40 @@
       // Expand target card if it wasn't already expanded
       if (!isExpanded) {
         card.classList.add('expanded');
+      }
+    }
+
+    async function deleteUser(uid, name) {
+      if (!confirm(`Are you absolutely sure you want to permanently delete user "${name}"?\n\nThis will completely wipe their profile, chat messages, popup replies, and activity logs from the database. This action is irreversible.`)) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/admin/users/${encodeURIComponent(uid)}`, {
+          method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        if (response.ok && result.success) {
+          const card = document.getElementById(`user-card-${uid}`);
+          if (card) {
+            card.style.transition = 'all 0.4s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+              allUsers = allUsers.filter(u => u.uid !== uid);
+              renderUsers();
+            }, 400);
+          } else {
+            allUsers = allUsers.filter(u => u.uid !== uid);
+            renderUsers();
+          }
+        } else {
+          alert(`Error: ${result.error || 'Failed to delete user'}`);
+        }
+      } catch (err) {
+        console.error('Error deleting user:', err);
+        alert('An unexpected error occurred while deleting the user.');
       }
     }
 
