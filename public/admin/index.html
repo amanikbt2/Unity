@@ -1836,6 +1836,10 @@
       if (tabId === 'updates') loadPopups();
       if (tabId === 'users') loadUsers();
       if (tabId === 'settings') loadSettings();
+      if (tabId === 'news') {
+        loadNews();
+        loadNewsStats();
+      }
     }
 
     async function loadSettings() {
@@ -2156,6 +2160,176 @@
       await fetch(`/api/admin/popups/${id}`, { method: 'DELETE' });
       loadPopups();
       fetchStats();
+    }
+
+    async function loadNews() {
+      const feed = document.getElementById('news-feed-list');
+      feed.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Fetching articles...</div>';
+      
+      try {
+        const res = await fetch('/api/news');
+        const data = await res.json();
+        feed.innerHTML = '';
+
+        if (!data.news || !data.news.length) {
+          feed.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:30px;">No news articles published yet.</div>';
+          return;
+        }
+
+        data.news.forEach(art => {
+          const joinedTags = (art.tags || []).join(', ');
+          feed.innerHTML += `
+            <div class="popup-card" style="padding: 16px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1; padding-right: 10px;">
+                  <strong style="font-size: 14px; color: var(--text);">${art.title}</strong>
+                  <div style="font-size: 11px; color: var(--accent); margin-top: 2px;">
+                    Category: <strong>${art.category}</strong> | Reading: <strong>${art.readingTime}</strong>
+                  </div>
+                </div>
+                <button class="btn-danger" style="padding: 4px 10px; font-size: 11px;" onclick="deleteNews('${art.id}')">Delete</button>
+              </div>
+              
+              <div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">
+                ${art.publisherAvatar ? `<img src="${art.publisherAvatar}" style="width: 20px; height: 20px; border-radius: 50%;">` : ''}
+                <span style="font-size: 11px; color: var(--text-muted);">Published by <strong>${art.publisher}</strong></span>
+              </div>
+
+              ${art.heroImage ? `<img src="${art.heroImage}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);">` : ''}
+              
+              <p style="margin: 4px 0; font-size: 12px; color: #CBD5E1; line-height: 1.4;">${art.summary}</p>
+              
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                ${art.breaking ? '<span style="background:var(--danger-glow); color:var(--danger); font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(248,113,113,0.1);">★ Breaking</span>' : ''}
+                ${art.featured ? '<span style="background:var(--primary-glow); color:var(--primary); font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(167,139,250,0.15);">★ Featured</span>' : ''}
+                ${art.trending ? '<span style="background:var(--accent-glow); color:var(--accent); font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(34,211,238,0.15);">🔥 Trending</span>' : ''}
+                ${joinedTags ? `<span style="background: rgba(255,255,255,0.03); color: var(--text-muted); font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);">Tags: ${joinedTags}</span>` : ''}
+              </div>
+            </div>
+          `;
+        });
+      } catch (err) {
+        console.error('Failed to load news articles:', err);
+        feed.innerHTML = '<div style="color:var(--danger); text-align:center; padding:20px;">Failed to retrieve news feed.</div>';
+      }
+    }
+
+    async function publishNews(e) {
+      e.preventDefault();
+      const title = document.getElementById('news-title').value;
+      const category = document.getElementById('news-category').value;
+      const readingTime = document.getElementById('news-reading-time').value;
+      const publisher = document.getElementById('news-publisher').value;
+      const publisherAvatar = document.getElementById('news-publisher-avatar').value;
+      const heroImage = document.getElementById('news-hero-image').value;
+      const tags = document.getElementById('news-tags').value;
+      const summary = document.getElementById('news-summary').value;
+      const content = document.getElementById('news-content').value;
+      const breaking = document.getElementById('news-breaking').checked;
+      const featured = document.getElementById('news-featured').checked;
+      const trending = document.getElementById('news-trending').checked;
+
+      try {
+        const res = await fetch('/api/news', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title,
+            category,
+            readingTime,
+            publisher,
+            publisherAvatar,
+            heroImage,
+            tags,
+            summary,
+            fullContent: content,
+            breaking,
+            featured,
+            trending
+          })
+        });
+
+        if (res.ok) {
+          document.getElementById('news-publish-form').reset();
+          alert('News article published successfully!');
+          loadNews();
+        } else {
+          alert('Failed to publish news article');
+        }
+      } catch (err) {
+        console.error('Error publishing news:', err);
+        alert('Error publishing news article');
+      }
+    }
+
+    async function deleteNews(id) {
+      if (!confirm('Are you sure you want to delete this news article?')) return;
+      try {
+        const res = await fetch(`/api/news/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+          loadNews();
+        } else {
+          alert('Failed to delete news article');
+        }
+      } catch (err) {
+        console.error('Error deleting news:', err);
+      }
+    }
+
+    async function loadNewsStats() {
+      try {
+        const res = await fetch('/api/admin/news/stats');
+        const data = await res.json();
+        if (data.success && data.stats) {
+          document.getElementById('api-provider').innerText = data.stats.lastFetchProvider || 'None';
+          document.getElementById('api-fetched-count').innerText = `${data.stats.lastFetchCount || 0} articles`;
+          document.getElementById('api-fetch-time').innerText = data.stats.lastFetchTime || 'Never fetched';
+        }
+      } catch (err) {
+        console.error('Failed to load news stats:', err);
+      }
+    }
+
+    function toggleApiKeyField(val) {
+      const container = document.getElementById('news-api-key-container');
+      container.style.display = val === 'gnews' ? 'block' : 'none';
+    }
+
+    async function triggerNewsFetch() {
+      const provider = document.getElementById('fetch-provider').value;
+      const apiKey = document.getElementById('news-api-key').value;
+      const btn = document.getElementById('btn-fetch-news');
+      
+      const originalText = btn.innerText;
+      btn.innerText = 'Syncing...';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/admin/news/fetch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ provider, apiKey })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          alert(`Successfully synced! Fetched: ${data.fetched}, Saved: ${data.saved} new articles.`);
+          loadNews();
+          loadNewsStats();
+        } else {
+          alert(`Sync failed: ${data.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        console.error('Failed to sync news:', err);
+        alert('API error occurred during sync');
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+      }
     }
 
     document.getElementById('popup-form').addEventListener('submit', async (e) => {
