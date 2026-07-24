@@ -2215,68 +2215,169 @@ function getSafeReadingTime(text) {
   return `${mins} min read`;
 }
 
+// --- GNews auto-refresh state ---
+let gnewsLastFetchTime = 0;
+const GNEWS_REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const GNEWS_CATEGORIES = [
+  { key: 'technology AI', category: 'AI' },
+  { key: 'android google mobile', category: 'Android' },
+  { key: 'cybersecurity hacking security', category: 'Cybersecurity' },
+  { key: 'gaming video games', category: 'Gaming' },
+  { key: 'kenya nairobi africa', category: 'Kenya' },
+  { key: 'world international global politics', category: 'World' },
+  { key: 'business economy finance', category: 'Business' },
+  { key: 'science space discovery', category: 'Science' },
+];
+
+async function autoRefreshNewsFromGNews() {
+  const key = process.env.GNEWS_API_KEY || '';
+  if (!key) return; // No key configured — skip silently
+  const now = Date.now();
+  if (now - gnewsLastFetchTime < GNEWS_REFRESH_INTERVAL_MS) return; // Not stale yet
+
+  gnewsLastFetchTime = now;
+  console.log('[News] Auto-refreshing news from GNews...');
+  const allArticles = [];
+
+  for (const { key: query, category } of GNEWS_CATEGORIES) {
+    try {
+      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=5&token=${key}`;
+      const resp = await axios.get(url, { timeout: 8000 });
+      if (resp.status === 403 || resp.status === 429) {
+        console.warn('[News] GNews rate limit reached during auto-refresh');
+        break;
+      }
+      const articles = resp.data?.articles || [];
+      articles.forEach((art, idx) => {
+        const artId = `gnews_${Math.abs((art.title || '').split('').reduce((a, c) => (a << 5) - a + c.charCodeAt(0), 0)).toString(36)}_${idx}`;
+        const publishedDate = art.publishedAt ? new Date(art.publishedAt) : new Date();
+        const diffHours = Math.floor((Date.now() - publishedDate) / 3600000);
+        let relativeTime = 'Just now';
+        if (diffHours > 24) relativeTime = `${Math.floor(diffHours / 24)} days ago`;
+        else if (diffHours > 0) relativeTime = `${diffHours} hours ago`;
+
+        allArticles.push({
+          id: artId,
+          title: art.title || 'News Article',
+          slug: (art.title || artId).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+          summary: art.description || 'Tap to read the full story.',
+          fullContent: art.content || art.description || 'Full content available at source.',
+          heroImage: art.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000&auto=format&fit=crop',
+          galleryImages: [],
+          publisher: art.source?.name || 'Global News',
+          publisherAvatar: art.source?.name ? `https://logo.clearbit.com/${art.source.name.toLowerCase().replace(/\s+/g, '')}.com` : '',
+          category,
+          tags: [category, art.source?.name || 'News'].filter(Boolean),
+          publishedAt: relativeTime,
+          readingTime: getSafeReadingTime(art.content || art.description || ''),
+          likes: Math.floor(10 + Math.random() * 120),
+          views: Math.floor(80 + Math.random() * 900),
+          bookmarked: false,
+          liked: false,
+          featured: idx === 0,
+          breaking: idx === 0 && (category === 'AI' || category === 'World'),
+          trending: idx < 3,
+          timestamp: publishedDate.getTime(),
+        });
+      });
+    } catch (err) {
+      console.warn(`[News] GNews fetch failed for category "${category}":`, err.message);
+    }
+  }
+
+  if (allArticles.length > 0) {
+    try {
+      if (useMongo) {
+        // Upsert by id to avoid duplicates
+        for (const art of allArticles) {
+          await News.findOneAndUpdate({ id: art.id }, art, { upsert: true, new: true });
+        }
+        // Prune old GNews articles beyond 150 to keep DB lean
+        const count = await News.countDocuments({ id: /^gnews_/ });
+        if (count > 150) {
+          const oldest = await News.find({ id: /^gnews_/ }).sort({ timestamp: 1 }).limit(count - 150).select('_id');
+          await News.deleteMany({ _id: { $in: oldest.map(d => d._id) } });
+        }
+      } else {
+        const existingIds = new Set(memoryStore.news.map(a => a.id));
+        const fresh = allArticles.filter(a => !existingIds.has(a.id));
+        memoryStore.news = [...fresh, ...memoryStore.news].slice(0, 200);
+      }
+      console.log(`[News] Auto-refreshed ${allArticles.length} articles from GNews across ${GNEWS_CATEGORIES.length} categories.`);
+    } catch (err) {
+      console.warn('[News] Failed to save GNews articles:', err.message);
+    }
+  }
+}
+
 app.get('/api/news', async (req, res) => {
   try {
+    // Trigger a non-blocking GNews refresh if data is stale
+    autoRefreshNewsFromGNews().catch(e => console.warn('[News] Background refresh error:', e.message));
+
+    const { category } = req.query;
     let list = [];
     if (useMongo) {
-      list = await News.find().sort({ timestamp: -1 }).lean();
+      const query = category && category.toLowerCase() !== 'all'
+        ? { category: { $regex: new RegExp(`^${category}$`, 'i') } }
+        : {};
+      list = await News.find(query).sort({ timestamp: -1 }).limit(80).lean();
     } else {
       list = memoryStore.news;
+      if (category && category.toLowerCase() !== 'all') {
+        list = list.filter(a => a.category?.toLowerCase() === category.toLowerCase());
+      }
     }
-    
-    // Pre-populate if empty
-    if (list.length === 0) {
+
+    // Pre-populate with mock data if nothing exists yet
+    if (list.length === 0 && (!category || category.toLowerCase() === 'all')) {
       const initialMock = [
         {
           id: "news_ai_001",
           title: "OpenAI Announces GPT-5 with Human-Level Multi-Modal Reasoning",
           slug: "openai-gpt-5-announcement",
-          summary: "OpenAI has officially unveiled its next-generation foundation model, GPT-5, promising unprecedented capabilities in complex planning, mathematics, and live video understanding.",
-          fullContent: "OpenAI has officially announced GPT-5, the latest iteration of its flagship generative pre-trained transformer. According to internal reports, the model exhibits advanced reasoning capabilities that match or exceed human-level experts on standardized benchmarks in mathematics, coding, and logical synthesis.\n\nUnlike its predecessors, GPT-5 is natively multi-modal from inception, enabling it to process and generate real-time video, audio, and code instructions concurrently. The startup plans a gradual rollout starting next week for ChatGPT Plus subscribers, followed by developer API access.\n\nResearchers highlight that GPT-5 uses a mixture-of-experts (MoE) architecture with dynamic routing, allowing it to remain relatively cost-effective while delivering massive intelligence leaps.",
+          summary: "OpenAI has officially unveiled GPT-5, promising unprecedented capabilities in complex planning, mathematics, and live video understanding.",
+          fullContent: "OpenAI has officially announced GPT-5, the latest iteration of its flagship generative pre-trained transformer. The model exhibits advanced reasoning capabilities matching human-level experts on standardized benchmarks.",
           heroImage: "https://images.unsplash.com/photo-1677442136019-21780efad99a?q=80&w=1000&auto=format&fit=crop",
-          publisher: "TechCrunch",
-          publisherAvatar: "https://logo.clearbit.com/techcrunch.com",
-          category: "AI",
-          tags: ["OpenAI", "GPT-5", "Artificial Intelligence", "Tech News"],
-          publishedAt: "2 hours ago",
-          readingTime: "3 min read",
-          likes: 342,
-          views: 1250,
-          featured: true,
-          breaking: true,
-          trending: true,
-          timestamp: Date.now() - 7200000,
+          publisher: "TechCrunch", publisherAvatar: "https://logo.clearbit.com/techcrunch.com",
+          category: "AI", tags: ["OpenAI", "GPT-5", "AI"], publishedAt: "2 hours ago",
+          readingTime: "3 min read", likes: 342, views: 1250, bookmarked: false, liked: false,
+          featured: true, breaking: true, trending: true, timestamp: Date.now() - 7200000,
         },
         {
           id: "news_android_002",
           title: "Google Pixel 10 Leaks: Custom Tensor G5 Processor by TSMC",
           slug: "google-pixel-10-tensor-g5-tsmc",
-          summary: "A leaked blueprint reveals that Google's upcoming Pixel 10 flagship will feature a fully custom-designed Tensor G5 chip, manufactured entirely by TSMC on a 3nm node.",
-          fullContent: "For years, Google's Tensor chips have relied partially on Samsung's designs and foundry nodes. However, newly leaked documents reveal that Google is shifting entirely to TSMC for the Tensor G5 processor, which will debut inside the Pixel 10 and Pixel 10 Pro.\n\nThis shift to TSMC's 3nm fabrication is expected to bring substantial improvements in thermal efficiency, battery life, and peak processor speeds, addressing the primary complaints of Pixel users over the past few generations. The new processor will also feature dedicated Google TPU cores optimized for running large on-device neural networks without exhausting battery reserves.\n\nIndustry experts expect the launch in early autumn, marking a major milestone for Google's silicon autonomy.",
+          summary: "A leaked blueprint reveals that Google's Pixel 10 will feature a fully custom Tensor G5 chip by TSMC on a 3nm node.",
+          fullContent: "Google is shifting entirely to TSMC for the Tensor G5 processor debuting in the Pixel 10 and Pixel 10 Pro, bringing major improvements in thermal efficiency and battery life.",
           heroImage: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=1000&auto=format&fit=crop",
-          publisher: "The Verge",
-          publisherAvatar: "https://logo.clearbit.com/theverge.com",
-          category: "Android",
-          tags: ["Google", "Pixel 10", "Tensor G5", "TSMC", "Android"],
-          publishedAt: "4 hours ago",
-          readingTime: "4 min read",
-          likes: 198,
-          views: 890,
-          featured: false,
-          breaking: false,
-          trending: true,
-          timestamp: Date.now() - 14400000,
+          publisher: "The Verge", publisherAvatar: "https://logo.clearbit.com/theverge.com",
+          category: "Android", tags: ["Google", "Pixel 10", "Android"], publishedAt: "4 hours ago",
+          readingTime: "4 min read", likes: 198, views: 890, bookmarked: false, liked: false,
+          featured: false, breaking: false, trending: true, timestamp: Date.now() - 14400000,
+        },
+        {
+          id: "news_kenya_003",
+          title: "Silicon Savannah: Nairobi Tech Hub Secures $450M in Venture Capital",
+          slug: "nairobi-tech-hub-secures-funding",
+          summary: "Kenya's tech sector is booming, securing $450M in foreign direct investment for climate-tech and fintech startups in East Africa.",
+          fullContent: "Nairobi's bustling tech ecosystem, widely known as the Silicon Savannah, has reached a new funding peak this quarter with $450 million raised by regional startups.",
+          heroImage: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=1000&auto=format&fit=crop",
+          publisher: "Nairobi Tech Review", publisherAvatar: "https://logo.clearbit.com/nation.africa",
+          category: "Kenya", tags: ["Kenya", "Nairobi", "FinTech"], publishedAt: "8 hours ago",
+          readingTime: "5 min read", likes: 276, views: 1100, bookmarked: false, liked: false,
+          featured: false, breaking: false, trending: true, timestamp: Date.now() - 28800000,
         }
       ];
       if (useMongo) {
-        await News.insertMany(initialMock);
-        list = await News.find().sort({ timestamp: -1 }).lean();
+        await News.insertMany(initialMock.map(a => ({ ...a, _id: undefined }))).catch(() => {});
+        list = await News.find({}).sort({ timestamp: -1 }).limit(80).lean();
       } else {
         memoryStore.news = initialMock;
         list = memoryStore.news;
       }
     }
-    
+
     res.json({ success: true, news: list });
   } catch (error) {
     console.error('Error fetching news:', error);
