@@ -4,8 +4,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#0B0813">
-  <title>Amani AI - Instant Real-Time Translation</title>
+  <!-- PWA & Mobile Optimization -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Unity">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,6 +20,8 @@
     rel="stylesheet">
   <!-- CSS Stylesheet -->
   <link rel="stylesheet" href="style.css">
+  <!-- PWA Installer & Service Worker -->
+  <script src="/pwa-installer.js" defer></script>
 </head>
 
 <body>
@@ -89,15 +97,15 @@
             Continue with Apple
           </button>
 
-          <!-- More Options accordion -->
-          <div class="more-options-wrapper">
-            <button id="btn-more-options" class="btn-text">More options</button>
-            <div id="email-login-panel" class="email-panel collapsed">
-              <input type="email" placeholder="Email address" class="input-field" />
-              <input type="password" placeholder="Password" class="input-field" />
-              <button class="btn btn-primary btn-small">Continue with Email</button>
-            </div>
-          </div>
+          <!-- PWA Install trigger button -->
+          <button onclick="window.triggerPWAInstall && window.triggerPWAInstall()" class="btn btn-secondary" style="border-color: rgba(167, 139, 250, 0.3); background: rgba(139, 92, 246, 0.1); margin-top: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px;">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Install Unity App (PWA)
+          </button>
         </div>
 
         <!-- Footer terms -->

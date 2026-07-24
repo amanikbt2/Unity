@@ -1,0 +1,26 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="192" height="192" rx="40" fill="#0B0813"/>
+  <rect x="4" y="4" width="184" height="184" rx="36" stroke="url(#border-grad)" stroke-width="3" stroke-opacity="0.4"/>
+  <!-- Ambient Glow -->
+  <circle cx="96" cy="96" r="60" fill="#8B5CF6" fill-opacity="0.25" filter="blur(20px)"/>
+  <!-- Logo Rings -->
+  <circle cx="96" cy="96" r="54" stroke="url(#ring-grad-1)" stroke-width="8" stroke-dasharray="24 12" stroke-linecap="round"/>
+  <path d="M70 96C70 81.6406 81.6406 70 96 70C110.359 70 122 81.6406 122 96C122 110.359 110.359 122 96 122" stroke="url(#ring-grad-2)" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="96" cy="96" r="10" fill="#EC4899"/>
+  <circle cx="96" cy="96" r="4" fill="#FFFFFF"/>
+  <defs>
+    <linearGradient id="border-grad" x1="0" y1="0" x2="192" y2="192" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="ring-grad-1" x1="20" y1="20" x2="172" y2="172" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="0.5" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#22D3EE"/>
+    </linearGradient>
+    <linearGradient id="ring-grad-2" x1="70" y1="70" x2="122" y2="122" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F43F5E"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+</svg>

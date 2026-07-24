@@ -2216,7 +2216,7 @@ function getSafeReadingTime(text) {
 }
 
 // --- GNews auto-refresh state ---
-let gnewsLastFetchTime = 0;
+let gnewsLastFetchTimes = {}; // Map of category.toLowerCase() -> timestamp
 const GNEWS_REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const GNEWS_CATEGORIES = [
   { key: 'technology AI', category: 'AI' },
@@ -2229,60 +2229,74 @@ const GNEWS_CATEGORIES = [
   { key: 'science space discovery', category: 'Science' },
 ];
 
-async function autoRefreshNewsFromGNews() {
+async function autoRefreshNewsFromGNews(targetCategory = null) {
   const key = process.env.GNEWS_API_KEY || '';
   if (!key) return; // No key configured — skip silently
   const now = Date.now();
-  if (now - gnewsLastFetchTime < GNEWS_REFRESH_INTERVAL_MS) return; // Not stale yet
 
-  gnewsLastFetchTime = now;
-  console.log('[News] Auto-refreshing news from GNews...');
+  // If no target category is specified, refresh "World" (or choose a random one)
+  const catName = targetCategory && targetCategory.toLowerCase() !== 'all' ? targetCategory : 'World';
+  const categoryLower = catName.toLowerCase();
+  
+  // Find matching GNEWS category config
+  const config = GNEWS_CATEGORIES.find(c => c.category.toLowerCase() === categoryLower) || 
+                 GNEWS_CATEGORIES.find(c => c.category.toLowerCase() === 'world');
+
+  if (!config) return;
+
+  // Rate limit: check if this specific category was fetched recently
+  const lastFetch = gnewsLastFetchTimes[config.category.toLowerCase()] || 0;
+  if (now - lastFetch < GNEWS_REFRESH_INTERVAL_MS) {
+    console.log(`[News] GNews category "${config.category}" is still fresh.`);
+    return;
+  }
+
+  gnewsLastFetchTimes[config.category.toLowerCase()] = now;
+  console.log(`[News] Auto-refreshing news from GNews for category: "${config.category}"...`);
   const allArticles = [];
 
-  for (const { key: query, category } of GNEWS_CATEGORIES) {
-    try {
-      const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(query)}&lang=en&max=5&token=${key}`;
-      const resp = await axios.get(url, { timeout: 8000 });
-      if (resp.status === 403 || resp.status === 429) {
-        console.warn('[News] GNews rate limit reached during auto-refresh');
-        break;
-      }
-      const articles = resp.data?.articles || [];
-      articles.forEach((art, idx) => {
-        const artId = `gnews_${Math.abs((art.title || '').split('').reduce((a, c) => (a << 5) - a + c.charCodeAt(0), 0)).toString(36)}_${idx}`;
-        const publishedDate = art.publishedAt ? new Date(art.publishedAt) : new Date();
-        const diffHours = Math.floor((Date.now() - publishedDate) / 3600000);
-        let relativeTime = 'Just now';
-        if (diffHours > 24) relativeTime = `${Math.floor(diffHours / 24)} days ago`;
-        else if (diffHours > 0) relativeTime = `${diffHours} hours ago`;
-
-        allArticles.push({
-          id: artId,
-          title: art.title || 'News Article',
-          slug: (art.title || artId).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-          summary: art.description || 'Tap to read the full story.',
-          fullContent: art.content || art.description || 'Full content available at source.',
-          heroImage: art.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000&auto=format&fit=crop',
-          galleryImages: [],
-          publisher: art.source?.name || 'Global News',
-          publisherAvatar: art.source?.name ? `https://logo.clearbit.com/${art.source.name.toLowerCase().replace(/\s+/g, '')}.com` : '',
-          category,
-          tags: [category, art.source?.name || 'News'].filter(Boolean),
-          publishedAt: relativeTime,
-          readingTime: getSafeReadingTime(art.content || art.description || ''),
-          likes: Math.floor(10 + Math.random() * 120),
-          views: Math.floor(80 + Math.random() * 900),
-          bookmarked: false,
-          liked: false,
-          featured: idx === 0,
-          breaking: idx === 0 && (category === 'AI' || category === 'World'),
-          trending: idx < 3,
-          timestamp: publishedDate.getTime(),
-        });
-      });
-    } catch (err) {
-      console.warn(`[News] GNews fetch failed for category "${category}":`, err.message);
+  try {
+    const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(config.key)}&lang=en&max=8&token=${key}`;
+    const resp = await axios.get(url, { timeout: 8000 });
+    if (resp.status === 403 || resp.status === 429) {
+      console.warn(`[News] GNews rate limit reached for category "${config.category}"`);
+      return;
     }
+    const articles = resp.data?.articles || [];
+    articles.forEach((art, idx) => {
+      const artId = `gnews_${Math.abs((art.title || '').split('').reduce((a, c) => (a << 5) - a + c.charCodeAt(0), 0)).toString(36)}_${idx}`;
+      const publishedDate = art.publishedAt ? new Date(art.publishedAt) : new Date();
+      const diffHours = Math.floor((Date.now() - publishedDate) / 3600000);
+      let relativeTime = 'Just now';
+      if (diffHours > 24) relativeTime = `${Math.floor(diffHours / 24)} days ago`;
+      else if (diffHours > 0) relativeTime = `${diffHours} hours ago`;
+
+      allArticles.push({
+        id: artId,
+        title: art.title || 'News Article',
+        slug: (art.title || artId).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        summary: art.description || 'Tap to read the full story.',
+        fullContent: art.content || art.description || 'Full content available at source.',
+        heroImage: art.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000&auto=format&fit=crop',
+        galleryImages: [],
+        publisher: art.source?.name || 'Global News',
+        publisherAvatar: art.source?.name ? `https://logo.clearbit.com/${art.source.name.toLowerCase().replace(/\s+/g, '')}.com` : '',
+        category: config.category,
+        tags: [config.category, art.source?.name || 'News'].filter(Boolean),
+        publishedAt: relativeTime,
+        readingTime: getSafeReadingTime(art.content || art.description || ''),
+        likes: Math.floor(10 + Math.random() * 120),
+        views: Math.floor(80 + Math.random() * 900),
+        bookmarked: false,
+        liked: false,
+        featured: idx === 0,
+        breaking: idx === 0 && (config.category === 'AI' || config.category === 'World'),
+        trending: idx < 3,
+        timestamp: publishedDate.getTime(),
+      });
+    });
+  } catch (err) {
+    console.warn(`[News] GNews fetch failed for category "${config.category}":`, err.message);
   }
 
   if (allArticles.length > 0) {
@@ -2303,7 +2317,7 @@ async function autoRefreshNewsFromGNews() {
         const fresh = allArticles.filter(a => !existingIds.has(a.id));
         memoryStore.news = [...fresh, ...memoryStore.news].slice(0, 200);
       }
-      console.log(`[News] Auto-refreshed ${allArticles.length} articles from GNews across ${GNEWS_CATEGORIES.length} categories.`);
+      console.log(`[News] Auto-refreshed ${allArticles.length} articles from GNews for category "${config.category}".`);
     } catch (err) {
       console.warn('[News] Failed to save GNews articles:', err.message);
     }
@@ -2312,10 +2326,9 @@ async function autoRefreshNewsFromGNews() {
 
 app.get('/api/news', async (req, res) => {
   try {
-    // Trigger a non-blocking GNews refresh if data is stale
-    autoRefreshNewsFromGNews().catch(e => console.warn('[News] Background refresh error:', e.message));
-
     const { category } = req.query;
+    // Trigger a non-blocking GNews refresh if data is stale
+    autoRefreshNewsFromGNews(category).catch(e => console.warn('[News] Background refresh error:', e.message));
     let list = [];
     if (useMongo) {
       const query = category && category.toLowerCase() !== 'all'

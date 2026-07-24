@@ -3,11 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Unity App - Admin Dashboard</title>
-  <!-- Google Fonts for premium modern typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- PWA & Mobile Optimization -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#05020c">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+  <!-- PWA Installer & Service Worker -->
+  <script src="/pwa-installer.js" defer></script>
   
   <style>
     :root {
@@ -1198,6 +1202,7 @@
       <button class="tab-btn" onclick="switchTab('notifications')">Push Notifications</button>
       <button class="tab-btn" onclick="switchTab('news')">News Feed</button>
       <button class="tab-btn" onclick="switchTab('settings')">App Settings</button>
+      <button class="tab-btn" onclick="window.triggerPWAInstall && window.triggerPWAInstall()" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(236, 72, 153, 0.25)); border: 1px solid rgba(167, 139, 250, 0.4); color: #FFF; font-weight: 600;">📲 Install PWA</button>
     </div>
   </header>
 
