@@ -1,13 +1,13 @@
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import multer from 'multer';
-import axios from 'axios';
-import fs from 'fs/promises';
-import mongoose from 'mongoose';
-import ImageKit from 'imagekit';
+import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
+import cors from "cors";
+import dotenv from "dotenv";
+import multer from "multer";
+import axios from "axios";
+import fs from "fs/promises";
+import mongoose from "mongoose";
+import ImageKit from "imagekit";
 
 dotenv.config();
 
@@ -18,35 +18,43 @@ const pushTokens = new Map();
 
 async function sendPushNotification(expoPushToken, title, body, data = {}) {
   try {
-    await axios.post('https://exp.host/--/api/v2/push/send', {
-      to: expoPushToken,
-      sound: 'default',
-      title,
-      body,
-      data
-    }, {
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      }
-    });
+    await axios.post(
+      "https://exp.host/--/api/v2/push/send",
+      {
+        to: expoPushToken,
+        sound: "default",
+        title,
+        body,
+        data,
+      },
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      },
+    );
   } catch (error) {
-    console.error('Error sending push notification:', error.message);
+    console.error("Error sending push notification:", error.message);
   }
 }
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 // Initialize API Key Pool
 let currentKeyIndex = 0;
-const keyPoolStr = process.env.GEMINI_KEY_POOL || process.env.GEMINI_API_KEY || '';
-const API_KEY_POOL = keyPoolStr.split(',').map(k => k.trim()).filter(Boolean);
+const keyPoolStr =
+  process.env.GEMINI_KEY_POOL || process.env.GEMINI_API_KEY || "";
+const API_KEY_POOL = keyPoolStr
+  .split(",")
+  .map((k) => k.trim())
+  .filter(Boolean);
 
 async function callGeminiWithRotation(payload) {
   if (API_KEY_POOL.length === 0) {
-    throw new Error('No Gemini API keys configured on the server.');
+    throw new Error("No Gemini API keys configured on the server.");
   }
 
   let attempt = 0;
@@ -56,24 +64,33 @@ async function callGeminiWithRotation(payload) {
   while (attempt < API_KEY_POOL.length) {
     const currentKey = API_KEY_POOL[currentKeyIndex];
     try {
-      console.log(`[API Pool] Using key index ${currentKeyIndex}. Attempt ${attempt + 1}/${API_KEY_POOL.length}`);
+      console.log(
+        `[API Pool] Using key index ${currentKeyIndex}. Attempt ${attempt + 1}/${API_KEY_POOL.length}`,
+      );
       const response = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${currentKey}`,
         payload,
-        { headers: { 'Content-Type': 'application/json' } }
+        { headers: { "Content-Type": "application/json" } },
       );
       return response;
     } catch (error) {
       lastError = error;
       const status = error.response?.status;
       // 429 Too Many Requests or 502/503/504 Bad Gateway often implies free tier rate limits
-      if (status === 429 || status === 502 || status === 503 || status === 504) {
-        console.warn(`[API Pool] Key index ${currentKeyIndex} failed with ${status}. Rotating to next key...`);
+      if (
+        status === 429 ||
+        status === 502 ||
+        status === 503 ||
+        status === 504
+      ) {
+        console.warn(
+          `[API Pool] Key index ${currentKeyIndex} failed with ${status}. Rotating to next key...`,
+        );
         currentKeyIndex = (currentKeyIndex + 1) % API_KEY_POOL.length;
         attempt++;
         continue;
       }
-      
+
       // If it's a 400 Bad Request or other non-rate-limit error, throw immediately
       throw error;
     }
@@ -83,14 +100,14 @@ async function callGeminiWithRotation(payload) {
 }
 
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 const activeSessions = new Map();
 
 // Middleware to track active client sessions for the currently online counter
 app.use((req, res, next) => {
-  if (req.path.startsWith('/admin') || req.path.startsWith('/api/admin')) {
+  if (req.path.startsWith("/admin") || req.path.startsWith("/api/admin")) {
     return next();
   }
 
@@ -98,13 +115,14 @@ app.use((req, res, next) => {
   if (req.body) {
     if (req.body.email) userKey = req.body.email;
     else if (req.body.uid) userKey = req.body.uid;
-    else if (req.body.userLabel && req.body.userLabel !== 'guest') userKey = req.body.userLabel;
+    else if (req.body.userLabel && req.body.userLabel !== "guest")
+      userKey = req.body.userLabel;
   }
   if (!userKey && req.query) {
     if (req.query.email) userKey = req.query.email;
   }
   if (!userKey) {
-    const headerEmail = req.headers['x-user-email'];
+    const headerEmail = req.headers["x-user-email"];
     if (headerEmail) userKey = headerEmail;
   }
 
@@ -119,43 +137,76 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin", "index.html"));
+});
+
+app.use(express.static(path.join(__dirname, "public")));
 
 const INITIAL_POSTS = [
   {
-    id: 'p1',
-    authorName: 'Sarah Jenkins',
-    authorId: 'sarah@example.com',
-    authorAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80',
-    authorFlag: '🇺🇸',
-    authorNativeLang: 'en',
-    flag: '🇺🇸',
-    time: '2 hours ago',
-    content: 'Just arrived in Tokyo! The translation app has been a lifesaver for ordering food and finding my hotel. Highly recommend it! 🗼🇯🇵',
-    imageUrls: ['https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=600&q=80'],
+    id: "p1",
+    authorName: "Sarah Jenkins",
+    authorId: "sarah@example.com",
+    authorAvatar:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80",
+    authorFlag: "🇺🇸",
+    authorNativeLang: "en",
+    flag: "🇺🇸",
+    time: "2 hours ago",
+    content:
+      "Just arrived in Tokyo! The translation app has been a lifesaver for ordering food and finding my hotel. Highly recommend it! 🗼🇯🇵",
+    imageUrls: [
+      "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=600&q=80",
+    ],
     likes: 24,
     likedBy: [],
     comments: [
-      { id: 'c1_1', authorId: 'yuki@example.com', authorName: 'Yuki Tanaka', authorAvatar: '', content: 'Welcome to Japan! Let me know if you need any recommendations.', createdAt: new Date(Date.now() - 35 * 60 * 1000).toISOString() },
-      { id: 'c1_2', authorId: 'sarah@example.com', authorName: 'Sarah Jenkins', authorAvatar: '', content: 'Thank you Yuki! I would love to get some sushi recommendations.', createdAt: new Date(Date.now() - 12 * 60 * 1000).toISOString() },
+      {
+        id: "c1_1",
+        authorId: "yuki@example.com",
+        authorName: "Yuki Tanaka",
+        authorAvatar: "",
+        content:
+          "Welcome to Japan! Let me know if you need any recommendations.",
+        createdAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+      },
+      {
+        id: "c1_2",
+        authorId: "sarah@example.com",
+        authorName: "Sarah Jenkins",
+        authorAvatar: "",
+        content:
+          "Thank you Yuki! I would love to get some sushi recommendations.",
+        createdAt: new Date(Date.now() - 12 * 60 * 1000).toISOString(),
+      },
     ],
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
   },
   {
-    id: 'p2',
-    authorName: 'Carlos Gomez',
-    authorId: 'carlos@example.com',
-    authorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80',
-    authorFlag: '🇪🇸',
-    authorNativeLang: 'es',
-    flag: '🇪🇸',
-    time: '4 hours ago',
-    content: 'Preparando la presentación para la cumbre europea de mañana. Gracias a Dios por la traducción de documentos en tiempo real de Xaylite, me ahorró horas de trabajo duro. 💼🇪🇺',
+    id: "p2",
+    authorName: "Carlos Gomez",
+    authorId: "carlos@example.com",
+    authorAvatar:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80",
+    authorFlag: "🇪🇸",
+    authorNativeLang: "es",
+    flag: "🇪🇸",
+    time: "4 hours ago",
+    content:
+      "Preparando la presentación para la cumbre europea de mañana. Gracias a Dios por la traducción de documentos en tiempo real de Xaylite, me ahorró horas de trabajo duro. 💼🇪🇺",
     imageUrls: [],
     likes: 12,
     likedBy: [],
     comments: [
-      { id: 'c2_1', authorId: 'lucas@example.com', authorName: 'Lucas Dupont', authorAvatar: '', content: 'Bonne chance Carlos! Everything will go well.', createdAt: new Date(Date.now() - 80 * 60 * 1000).toISOString() },
+      {
+        id: "c2_1",
+        authorId: "lucas@example.com",
+        authorName: "Lucas Dupont",
+        authorAvatar: "",
+        content: "Bonne chance Carlos! Everything will go well.",
+        createdAt: new Date(Date.now() - 80 * 60 * 1000).toISOString(),
+      },
     ],
     createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
   },
@@ -163,30 +214,33 @@ const INITIAL_POSTS = [
 
 const EXPLORE_PEOPLE = [
   {
-    id: 'e1',
-    name: 'Amélie Dubois',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&h=300&q=80',
-    flag: '🇫🇷',
-    langName: 'French (France)',
-    bio: 'Hi! I am a culinary chef in Paris. Let\'s exchange recipes!',
+    id: "e1",
+    name: "Amélie Dubois",
+    avatar:
+      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&h=300&q=80",
+    flag: "🇫🇷",
+    langName: "French (France)",
+    bio: "Hi! I am a culinary chef in Paris. Let's exchange recipes!",
     isUnityUser: true,
   },
   {
-    id: 'e2',
-    name: 'Hiroshi Sato',
-    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&h=300&q=80',
-    flag: '🇯🇵',
-    langName: 'Japanese (Japan)',
-    bio: 'Tech enthusiast and history buff. Happy to translate and chat!',
+    id: "e2",
+    name: "Hiroshi Sato",
+    avatar:
+      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=300&h=300&q=80",
+    flag: "🇯🇵",
+    langName: "Japanese (Japan)",
+    bio: "Tech enthusiast and history buff. Happy to translate and chat!",
     isUnityUser: true,
   },
   {
-    id: 'dev@gmail.com',
-    name: 'Mr Man',
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&h=300&q=80',
-    flag: '🇺🇸',
-    langName: 'English (US)',
-    bio: 'System Administrator',
+    id: "dev@gmail.com",
+    name: "Mr Man",
+    avatar:
+      "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&h=300&q=80",
+    flag: "🇺🇸",
+    langName: "English (US)",
+    bio: "System Administrator",
     isUnityUser: true,
   },
 ];
@@ -202,15 +256,15 @@ const memoryStore = {
   newsStats: {
     lastFetchTime: null,
     lastFetchCount: 0,
-    lastFetchProvider: ''
-  }
+    lastFetchProvider: "",
+  },
 };
 
 const hasMongo = Boolean(process.env.MONGODB_URI);
 const hasImageKit = Boolean(
   process.env.IMAGEKIT_PUBLIC_KEY &&
-    process.env.IMAGEKIT_PRIVATE_KEY &&
-    process.env.IMAGEKIT_URL_ENDPOINT,
+  process.env.IMAGEKIT_PRIVATE_KEY &&
+  process.env.IMAGEKIT_URL_ENDPOINT,
 );
 
 let useMongo = false;
@@ -225,17 +279,19 @@ const imagekit = hasImageKit
 
 setTimeout(() => {
   if (!useMongo) {
-    console.warn('Post storage running in memory mode. Set MONGODB_URI and IMAGEKIT_* env vars for persistence and cloud uploads.');
+    console.warn(
+      "Post storage running in memory mode. Set MONGODB_URI and IMAGEKIT_* env vars for persistence and cloud uploads.",
+    );
   }
 }, 5000);
 
 const commentSchema = new mongoose.Schema(
   {
     id: { type: String, required: true },
-    authorId: { type: String, default: '' },
-    authorName: { type: String, default: '' },
-    authorAvatar: { type: String, default: '' },
-    content: { type: String, default: '' },
+    authorId: { type: String, default: "" },
+    authorName: { type: String, default: "" },
+    authorAvatar: { type: String, default: "" },
+    content: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false },
@@ -244,12 +300,12 @@ const commentSchema = new mongoose.Schema(
 const postSchema = new mongoose.Schema(
   {
     postId: { type: String, unique: true, index: true },
-    authorId: { type: String, default: '' },
-    authorName: { type: String, default: '' },
-    authorAvatar: { type: String, default: '' },
-    authorFlag: { type: String, default: '🌍' },
-    authorNativeLang: { type: String, default: '' },
-    content: { type: String, default: '' },
+    authorId: { type: String, default: "" },
+    authorName: { type: String, default: "" },
+    authorAvatar: { type: String, default: "" },
+    authorFlag: { type: String, default: "🌍" },
+    authorNativeLang: { type: String, default: "" },
+    content: { type: String, default: "" },
     imageUrls: { type: [String], default: [] },
     imageFileIds: { type: [String], default: [] },
     likes: { type: Number, default: 0 },
@@ -259,142 +315,144 @@ const postSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-const popupSchema = new mongoose.Schema(
-  {
-    id: { type: String, unique: true, index: true },
-    title: { type: String, required: true },
-    subtopic: { type: String, default: '' },
-    text: { type: String, required: true },
-    imageUrl: { type: String, default: '' },
-    isImportant: { type: Boolean, default: false },
-    displayStyle: { type: String, default: 'modal', enum: ['modal', 'alert'] }, // 'modal' = full card, 'alert' = native alert
-    alertButtons: { type: Array, default: [] }, // Array of { label, style } for alert mode
-    actions: { type: Array, default: [] }, // Array of { label: String, url: String }
-    isAppUpdate: { type: Boolean, default: false },
-    targetVersion: { type: String, default: '' },
-    isInteractive: { type: Boolean, default: false },
-    submitBtnText: { type: String, default: 'Submit' },
-    formFields: { type: Array, default: [] }, // Array of { type, label, options, required }
-    createdAt: { type: Date, default: Date.now },
-  }
-);
+const popupSchema = new mongoose.Schema({
+  id: { type: String, unique: true, index: true },
+  title: { type: String, required: true },
+  subtopic: { type: String, default: "" },
+  text: { type: String, required: true },
+  imageUrl: { type: String, default: "" },
+  isImportant: { type: Boolean, default: false },
+  displayStyle: { type: String, default: "modal", enum: ["modal", "alert"] }, // 'modal' = full card, 'alert' = native alert
+  alertButtons: { type: Array, default: [] }, // Array of { label, style } for alert mode
+  actions: { type: Array, default: [] }, // Array of { label: String, url: String }
+  isAppUpdate: { type: Boolean, default: false },
+  targetVersion: { type: String, default: "" },
+  isInteractive: { type: Boolean, default: false },
+  submitBtnText: { type: String, default: "Submit" },
+  formFields: { type: Array, default: [] }, // Array of { type, label, options, required }
+  createdAt: { type: Date, default: Date.now },
+});
 
-const popupReplySchema = new mongoose.Schema(
-  {
-    popupId: { type: String, required: true, index: true },
-    userName: { type: String, default: 'xayLiteUser' },
-    appVersion: { type: String, default: 'Unknown' },
-    replyData: { type: mongoose.Schema.Types.Mixed, default: {} },
-    createdAt: { type: Date, default: Date.now },
-  }
-);
+const popupReplySchema = new mongoose.Schema({
+  popupId: { type: String, required: true, index: true },
+  userName: { type: String, default: "xayLiteUser" },
+  appVersion: { type: String, default: "Unknown" },
+  replyData: { type: mongoose.Schema.Types.Mixed, default: {} },
+  createdAt: { type: Date, default: Date.now },
+});
 
 const activityLogSchema = new mongoose.Schema(
   {
     event: { type: String, required: true, index: true }, // e.g. 'app_open', 'login_click', 'login_success', 'login_fail'
-    method: { type: String, default: '' },                 // 'google', 'email', 'saved_profile'
-    userLabel: { type: String, default: 'unknown' },       // name if known, or 'guest'
-    email: { type: String, default: '' },
-    platform: { type: String, default: '' },               // 'android', 'ios', 'web'
-    appVersion: { type: String, default: '' },
-    error: { type: String, default: '' },
+    method: { type: String, default: "" }, // 'google', 'email', 'saved_profile'
+    userLabel: { type: String, default: "unknown" }, // name if known, or 'guest'
+    email: { type: String, default: "" },
+    platform: { type: String, default: "" }, // 'android', 'ios', 'web'
+    appVersion: { type: String, default: "" },
+    error: { type: String, default: "" },
     meta: { type: mongoose.Schema.Types.Mixed, default: {} },
     createdAt: { type: Date, default: Date.now, index: true },
   },
-  { _id: true }
+  { _id: true },
 );
 
-const Post = mongoose.models.Post || mongoose.model('Post', postSchema);
-const Popup = mongoose.models.Popup || mongoose.model('Popup', popupSchema);
-const PopupReply = mongoose.models.PopupReply || mongoose.model('PopupReply', popupReplySchema);
-const ActivityLog = mongoose.models.ActivityLog || mongoose.model('ActivityLog', activityLogSchema);
+const Post = mongoose.models.Post || mongoose.model("Post", postSchema);
+const Popup = mongoose.models.Popup || mongoose.model("Popup", popupSchema);
+const PopupReply =
+  mongoose.models.PopupReply || mongoose.model("PopupReply", popupReplySchema);
+const ActivityLog =
+  mongoose.models.ActivityLog ||
+  mongoose.model("ActivityLog", activityLogSchema);
 
 const newsSchema = new mongoose.Schema(
   {
     id: { type: String, unique: true, index: true },
     title: { type: String, required: true },
-    slug: { type: String, default: '' },
-    summary: { type: String, default: '' },
-    fullContent: { type: String, default: '' },
-    heroImage: { type: String, default: '' },
+    slug: { type: String, default: "" },
+    summary: { type: String, default: "" },
+    fullContent: { type: String, default: "" },
+    heroImage: { type: String, default: "" },
     galleryImages: { type: [String], default: [] },
-    publisher: { type: String, default: 'Global News' },
-    publisherAvatar: { type: String, default: '' },
-    category: { type: String, default: 'Technology' },
+    publisher: { type: String, default: "Global News" },
+    publisherAvatar: { type: String, default: "" },
+    category: { type: String, default: "Technology" },
     tags: { type: [String], default: [] },
-    publishedAt: { type: String, default: 'Just now' },
-    readingTime: { type: String, default: '3 min read' },
+    publishedAt: { type: String, default: "Just now" },
+    readingTime: { type: String, default: "3 min read" },
     likes: { type: Number, default: 0 },
     views: { type: Number, default: 0 },
     featured: { type: Boolean, default: false },
     breaking: { type: Boolean, default: false },
     trending: { type: Boolean, default: false },
-    timestamp: { type: Number, default: Date.now }
+    timestamp: { type: Number, default: Date.now },
   },
-  { _id: true }
+  { _id: true },
 );
-const News = mongoose.models.News || mongoose.model('News', newsSchema);
+const News = mongoose.models.News || mongoose.model("News", newsSchema);
 
-const settingSchema = new mongoose.Schema(
-  {
-    key: { type: String, unique: true, index: true },
-    value: mongoose.Schema.Types.Mixed,
-  }
-);
-const Setting = mongoose.models.Setting || mongoose.model('Setting', settingSchema);
+const settingSchema = new mongoose.Schema({
+  key: { type: String, unique: true, index: true },
+  value: mongoose.Schema.Types.Mixed,
+});
+const Setting =
+  mongoose.models.Setting || mongoose.model("Setting", settingSchema);
 
-const userProfileSchema = new mongoose.Schema(
-  {
-    uid: { type: String, required: true, unique: true, index: true },
-    name: { type: String, required: true },
-    avatar: { type: String, default: '' },
-    flag: { type: String, default: '🇺🇸' },
-    langName: { type: String, default: 'English' },
-    bio: { type: String, default: 'Available on Xaylite' },
-    email: { type: String, default: '' },
-    authMethod: { type: String, default: 'email' },
-    location: { type: String, default: 'Unknown' },
-    appVersion: { type: String, default: '1.0.0' },
-    platform: { type: String, default: 'unknown' },
-    nativeLang: { type: String, default: 'en' },
-    unityAILang: { type: String, default: 'es' },
-    phone: { type: String, default: '' },
-    nativeLangSelected: { type: Boolean, default: false },
-    voiceAITrained: { type: Boolean, default: false },
-    micTested: { type: Boolean, default: false },
-    pushToken: { type: String, default: '' },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
-  }
-);
-const UserProfile = mongoose.models.UserProfile || mongoose.model('UserProfile', userProfileSchema);
+const userProfileSchema = new mongoose.Schema({
+  uid: { type: String, required: true, unique: true, index: true },
+  name: { type: String, required: true },
+  avatar: { type: String, default: "" },
+  flag: { type: String, default: "🇺🇸" },
+  langName: { type: String, default: "English" },
+  bio: { type: String, default: "Available on Xaylite" },
+  email: { type: String, default: "" },
+  authMethod: { type: String, default: "email" },
+  location: { type: String, default: "Unknown" },
+  appVersion: { type: String, default: "1.0.0" },
+  platform: { type: String, default: "unknown" },
+  nativeLang: { type: String, default: "en" },
+  unityAILang: { type: String, default: "es" },
+  phone: { type: String, default: "" },
+  nativeLangSelected: { type: Boolean, default: false },
+  voiceAITrained: { type: Boolean, default: false },
+  micTested: { type: Boolean, default: false },
+  pushToken: { type: String, default: "" },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+});
+const UserProfile =
+  mongoose.models.UserProfile ||
+  mongoose.model("UserProfile", userProfileSchema);
 
 const notificationSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, index: true },
   type: { type: String, required: true }, // 'system' or 'chat'
-  title: { type: String, default: '' },
-  body: { type: String, default: '' },
-  icon: { type: String, default: '' }, // 'info', 'warning', 'success', 'default'
-  senderName: { type: String, default: '' },
-  senderAvatar: { type: String, default: '' },
-  targetEmail: { type: String, default: '' }, // '' = broadcast to all users
-  createdAt: { type: Date, default: Date.now, index: true }
+  title: { type: String, default: "" },
+  body: { type: String, default: "" },
+  icon: { type: String, default: "" }, // 'info', 'warning', 'success', 'default'
+  senderName: { type: String, default: "" },
+  senderAvatar: { type: String, default: "" },
+  targetEmail: { type: String, default: "" }, // '' = broadcast to all users
+  createdAt: { type: Date, default: Date.now, index: true },
 });
-const NotificationModel = mongoose.models.Notification || mongoose.model('Notification', notificationSchema);
+const NotificationModel =
+  mongoose.models.Notification ||
+  mongoose.model("Notification", notificationSchema);
 
 const chatMessageSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true, index: true },
   senderId: { type: String, required: true, index: true },
   recipientId: { type: String, required: true, index: true },
-  senderName: { type: String, default: '' },
-  senderAvatar: { type: String, default: '' },
+  senderName: { type: String, default: "" },
+  senderAvatar: { type: String, default: "" },
   text: { type: String, required: true },
-  transText: { type: String, default: '' },
-  origLang: { type: String, default: '' },
-  transLang: { type: String, default: '' },
-  timestamp: { type: Number, default: Date.now, index: true }
+  transText: { type: String, default: "" },
+  origLang: { type: String, default: "" },
+  transLang: { type: String, default: "" },
+  timestamp: { type: Number, default: Date.now, index: true },
 });
-const ChatMessage = mongoose.models.ChatMessage || mongoose.model('ChatMessage', chatMessageSchema);
+const ChatMessage =
+  mongoose.models.ChatMessage ||
+  mongoose.model("ChatMessage", chatMessageSchema);
 
 const memoryUserProfiles = new Map();
 const memoryNotifications = [];
@@ -402,51 +460,54 @@ const memoryChatMessages = [];
 
 // Mock User Profiles for dashboard pre-population
 const mockUser1 = {
-  uid: 'user_google_1',
-  name: 'Alex Rivera',
-  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80',
-  flag: '🇺🇸',
-  langName: 'English (US)',
-  bio: 'Learning Spanish and German!',
-  email: 'alex.rivera@gmail.com',
-  authMethod: 'google',
-  location: 'San Francisco, USA',
-  appVersion: '1.0.5',
-  platform: 'android',
+  uid: "user_google_1",
+  name: "Alex Rivera",
+  avatar:
+    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80",
+  flag: "🇺🇸",
+  langName: "English (US)",
+  bio: "Learning Spanish and German!",
+  email: "alex.rivera@gmail.com",
+  authMethod: "google",
+  location: "San Francisco, USA",
+  appVersion: "1.0.5",
+  platform: "android",
   createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000),
-  updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
 };
 
 const mockUser2 = {
-  uid: 'user_google_2',
-  name: 'Sofia Müller',
-  avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80',
-  flag: '🇩🇪',
-  langName: 'German (Germany)',
-  bio: 'Hallo! Let\'s practice speaking.',
-  email: 'sofia.muller@gmail.com',
-  authMethod: 'google',
-  location: 'Berlin, Germany',
-  appVersion: '1.0.5',
-  platform: 'ios',
+  uid: "user_google_2",
+  name: "Sofia Müller",
+  avatar:
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80",
+  flag: "🇩🇪",
+  langName: "German (Germany)",
+  bio: "Hallo! Let's practice speaking.",
+  email: "sofia.muller@gmail.com",
+  authMethod: "google",
+  location: "Berlin, Germany",
+  appVersion: "1.0.5",
+  platform: "ios",
   createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-  updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000)
+  updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
 };
 
 const mockUser3 = {
-  uid: 'user_email_3',
-  name: 'Jean Dupont',
-  avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80',
-  flag: '🇫🇷',
-  langName: 'French (France)',
-  bio: 'Passionate about culinary arts.',
-  email: 'jean.dupont@outlook.com',
-  authMethod: 'email',
-  location: 'Paris, France',
-  appVersion: '1.0.2',
-  platform: 'web',
+  uid: "user_email_3",
+  name: "Jean Dupont",
+  avatar:
+    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80",
+  flag: "🇫🇷",
+  langName: "French (France)",
+  bio: "Passionate about culinary arts.",
+  email: "jean.dupont@outlook.com",
+  authMethod: "email",
+  location: "Paris, France",
+  appVersion: "1.0.2",
+  platform: "web",
   createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000),
-  updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+  updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
 };
 
 memoryUserProfiles.set(mockUser1.uid, mockUser1);
@@ -454,69 +515,66 @@ memoryUserProfiles.set(mockUser2.uid, mockUser2);
 memoryUserProfiles.set(mockUser3.uid, mockUser3);
 
 const mockUserMrMan = {
-  uid: 'dev@gmail.com',
-  name: 'Mr Man',
-  avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&h=300&q=80',
-  flag: '🇺🇸',
-  langName: 'English (US)',
-  bio: 'System Administrator',
-  email: 'dev@gmail.com',
-  authMethod: 'email',
-  location: 'United States',
-  appVersion: '1.0.0',
-  platform: 'android',
-  nativeLang: 'en',
-  unityAILang: 'es',
-  phone: '+15550199',
+  uid: "dev@gmail.com",
+  name: "Mr Man",
+  avatar:
+    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=300&h=300&q=80",
+  flag: "🇺🇸",
+  langName: "English (US)",
+  bio: "System Administrator",
+  email: "dev@gmail.com",
+  authMethod: "email",
+  location: "United States",
+  appVersion: "1.0.0",
+  platform: "android",
+  nativeLang: "en",
+  unityAILang: "es",
+  phone: "+15550199",
   nativeLangSelected: true,
   voiceAITrained: true,
   micTested: true,
   createdAt: new Date(),
-  updatedAt: new Date()
+  updatedAt: new Date(),
 };
 memoryUserProfiles.set(mockUserMrMan.uid, mockUserMrMan);
 
 function flagToCountry(flag) {
   const map = {
-    '🇺🇸': 'United States',
-    '🇬🇧': 'United Kingdom',
-    '🇫🇷': 'France',
-    '🇩🇪': 'Germany',
-    '🇪🇸': 'Spain',
-    '🇯🇵': 'Japan',
-    '🇮🇹': 'Italy',
-    '🇨🇳': 'China',
-    '🇰🇷': 'South Korea',
-    '🇮🇳': 'India',
-    '🇨🇦': 'Canada',
-    '🇧🇷': 'Brazil',
-    '🇲🇽': 'Mexico',
-    '🌍': 'Unknown'
+    "🇺🇸": "United States",
+    "🇬🇧": "United Kingdom",
+    "🇫🇷": "France",
+    "🇩🇪": "Germany",
+    "🇪🇸": "Spain",
+    "🇯🇵": "Japan",
+    "🇮🇹": "Italy",
+    "🇨🇳": "China",
+    "🇰🇷": "South Korea",
+    "🇮🇳": "India",
+    "🇨🇦": "Canada",
+    "🇧🇷": "Brazil",
+    "🇲🇽": "Mexico",
+    "🌍": "Unknown",
   };
-  return map[flag] || 'Unknown';
+  return map[flag] || "Unknown";
 }
 
 async function seedUserProfiles() {
   try {
     const count = await UserProfile.countDocuments();
     if (count === 0) {
-      const mockUsers = [
-        mockUser1,
-        mockUser2,
-        mockUser3
-      ];
+      const mockUsers = [mockUser1, mockUser2, mockUser3];
       await UserProfile.create(mockUsers);
-      console.log('[Seeding] Seeded database with mock user profiles.');
+      console.log("[Seeding] Seeded database with mock user profiles.");
     }
 
     // Always ensure Mr Man account exists in database
-    const mrManExists = await UserProfile.findOne({ uid: 'dev@gmail.com' });
+    const mrManExists = await UserProfile.findOne({ uid: "dev@gmail.com" });
     if (!mrManExists) {
       await UserProfile.create(mockUserMrMan);
-      console.log('[Seeding] Seeded Mr Man user profile in MongoDB.');
+      console.log("[Seeding] Seeded Mr Man user profile in MongoDB.");
     }
   } catch (err) {
-    console.error('[Seeding] Failed to seed mock user profiles:', err.message);
+    console.error("[Seeding] Failed to seed mock user profiles:", err.message);
   }
 }
 
@@ -524,25 +582,27 @@ async function seedUserProfiles() {
 if (hasMongo) {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log('MongoDB connected.');
+    console.log("MongoDB connected.");
     useMongo = true;
     await seedUserProfiles();
   } catch (error) {
-    console.error('MongoDB connection failed, falling back to memory store:', error.message);
+    console.error(
+      "MongoDB connection failed, falling back to memory store:",
+      error.message,
+    );
   }
 }
 
-mongoose.connection.on('connected', async () => {
-  console.log('Mongoose connection established/restored.');
+mongoose.connection.on("connected", async () => {
+  console.log("Mongoose connection established/restored.");
   useMongo = true;
   await seedUserProfiles();
 });
 
-mongoose.connection.on('disconnected', () => {
-  console.warn('Mongoose connection disconnected.');
+mongoose.connection.on("disconnected", () => {
+  console.warn("Mongoose connection disconnected.");
   useMongo = false;
 });
-
 
 // In-memory fallback when MongoDB is unavailable
 const memoryLogs = [];
@@ -554,24 +614,28 @@ function formatTimeAgo(dateValue) {
   const diffHours = Math.floor(diffMs / 3600000);
   const diffDays = Math.floor(diffMs / 86400000);
 
-  if (diffMinutes < 1) return 'Just now';
-  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes === 1 ? '' : 's'} ago`;
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? '' : 's'} ago`;
-  return `${diffDays} day${diffDays === 1 ? '' : 's'} ago`;
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60)
+    return `${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
+  if (diffHours < 24)
+    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
 function normalizeComment(comment) {
   return {
     id: comment.id,
-    authorId: comment.authorId || '',
-    authorName: comment.authorName || '',
-    authorAvatar: comment.authorAvatar || '',
-    content: comment.content || '',
-    createdAt: comment.createdAt ? new Date(comment.createdAt).toISOString() : new Date().toISOString(),
+    authorId: comment.authorId || "",
+    authorName: comment.authorName || "",
+    authorAvatar: comment.authorAvatar || "",
+    content: comment.content || "",
+    createdAt: comment.createdAt
+      ? new Date(comment.createdAt).toISOString()
+      : new Date().toISOString(),
   };
 }
 
-function normalizePost(post, userKey = '') {
+function normalizePost(post, userKey = "") {
   const comments = Array.isArray(post.comments)
     ? post.comments.map((comment) => normalizeComment(comment))
     : [];
@@ -579,16 +643,21 @@ function normalizePost(post, userKey = '') {
 
   return {
     id: post.postId || post.id || post._id?.toString(),
-    authorId: post.authorId || '',
-    authorName: post.authorName || '',
-    authorAvatar: post.authorAvatar || '',
-    avatar: post.authorAvatar || '',
-    authorFlag: post.authorFlag || '🌍',
-    authorNativeLang: post.authorNativeLang || '',
-    flag: post.authorFlag || '🌍',
+    authorId: post.authorId || "",
+    authorName: post.authorName || "",
+    authorAvatar: post.authorAvatar || "",
+    avatar: post.authorAvatar || "",
+    authorFlag: post.authorFlag || "🌍",
+    authorNativeLang: post.authorNativeLang || "",
+    flag: post.authorFlag || "🌍",
     time: formatTimeAgo(post.createdAt || post.timestamp || Date.now()),
-    content: post.content || '',
-    images: post.imageUrls?.length > 0 ? post.imageUrls : (post.imageUrl ? [post.imageUrl] : []),
+    content: post.content || "",
+    images:
+      post.imageUrls?.length > 0
+        ? post.imageUrls
+        : post.imageUrl
+          ? [post.imageUrl]
+          : [],
     likes: Number(post.likes || 0),
     liked,
     comments,
@@ -598,35 +667,48 @@ function normalizePost(post, userKey = '') {
 }
 
 async function uploadImageToImageKit(file) {
-  if (!imagekit || !file) return '';
+  if (!imagekit || !file) return "";
   const fileName = file.originalname || `post_${Date.now()}`;
-  const data = file.buffer.toString('base64');
+  const data = file.buffer.toString("base64");
   const result = await imagekit.upload({
     file: data,
     fileName,
-    folder: '/UnityApp/posts',
+    folder: "/UnityApp/posts",
   });
-  return result.url || '';
+  return result.url || "";
 }
 
-async function getPostsList(userKey = '') {
+async function getPostsList(userKey = "") {
   if (useMongo) {
     const posts = await Post.find().sort({ createdAt: -1 }).lean();
     return posts.map((post) => normalizePost(post, userKey));
   }
-  return memoryStore.posts.slice().sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt)).map((post) => normalizePost(post, userKey));
+  return memoryStore.posts
+    .slice()
+    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt))
+    .map((post) => normalizePost(post, userKey));
 }
 
 async function findPostById(postId) {
   if (useMongo) {
     return Post.findOne({ postId });
   }
-  return memoryStore.posts.find((post) => post.postId === postId || post.id === postId) || null;
+  return (
+    memoryStore.posts.find(
+      (post) => post.postId === postId || post.id === postId,
+    ) || null
+  );
 }
 
 async function saveMemoryPost(nextPost) {
-  const index = memoryStore.posts.findIndex((post) => post.postId === nextPost.postId || post.id === nextPost.postId);
-  const normalized = { ...nextPost, createdAt: nextPost.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+  const index = memoryStore.posts.findIndex(
+    (post) => post.postId === nextPost.postId || post.id === nextPost.postId,
+  );
+  const normalized = {
+    ...nextPost,
+    createdAt: nextPost.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
   if (index >= 0) {
     memoryStore.posts[index] = normalized;
   } else {
@@ -636,7 +718,9 @@ async function saveMemoryPost(nextPost) {
 }
 
 async function deleteMemoryPost(postId) {
-  const index = memoryStore.posts.findIndex((post) => post.postId === postId || post.id === postId);
+  const index = memoryStore.posts.findIndex(
+    (post) => post.postId === postId || post.id === postId,
+  );
   if (index >= 0) {
     const [removed] = memoryStore.posts.splice(index, 1);
     return removed;
@@ -644,9 +728,10 @@ async function deleteMemoryPost(postId) {
   return null;
 }
 
-app.post('/api/register-push', async (req, res) => {
+app.post("/api/register-push", async (req, res) => {
   const { userKey, token } = req.body;
-  if (!userKey || !token) return res.json({ success: false, error: 'Missing userKey or token' });
+  if (!userKey || !token)
+    return res.json({ success: false, error: "Missing userKey or token" });
 
   // Always keep in-memory map for fast lookups in this process
   pushTokens.set(userKey, token);
@@ -657,15 +742,16 @@ app.post('/api/register-push', async (req, res) => {
       await UserProfile.findOneAndUpdate(
         { uid: userKey },
         { pushToken: token, updatedAt: new Date() },
-        { upsert: false } // Only update existing profiles, don't create ghost profiles
+        { upsert: false }, // Only update existing profiles, don't create ghost profiles
       );
     } else {
       const profile = memoryUserProfiles.get(userKey);
-      if (profile) memoryUserProfiles.set(userKey, { ...profile, pushToken: token });
+      if (profile)
+        memoryUserProfiles.set(userKey, { ...profile, pushToken: token });
     }
     console.log(`[Push] Token registered and persisted for: ${userKey}`);
   } catch (err) {
-    console.warn('[Push] Failed to persist push token to DB:', err.message);
+    console.warn("[Push] Failed to persist push token to DB:", err.message);
   }
 
   res.json({ success: true });
@@ -684,7 +770,9 @@ async function getPushTokenForUser(uid) {
   // 2. Fall back to MongoDB (user may be offline / server restarted)
   try {
     if (useMongo) {
-      const profile = await UserProfile.findOne({ uid }).select('pushToken').lean();
+      const profile = await UserProfile.findOne({ uid })
+        .select("pushToken")
+        .lean();
       if (profile?.pushToken) {
         // Warm the in-memory cache so next lookup is instant
         pushTokens.set(uid, profile.pushToken);
@@ -695,38 +783,38 @@ async function getPushTokenForUser(uid) {
       return profile?.pushToken || null;
     }
   } catch (err) {
-    console.warn('[Push] getPushTokenForUser DB lookup failed:', err.message);
+    console.warn("[Push] getPushTokenForUser DB lookup failed:", err.message);
   }
   return null;
 }
 
-app.post('/api/simulate-notification', async (req, res) => {
+app.post("/api/simulate-notification", async (req, res) => {
   const { userKey, type, name } = req.body;
   const token = pushTokens.get(userKey);
-  if (!token) return res.status(404).json({ error: 'No push token found' });
-  
-  let title = 'Notification';
-  let body = 'You have a new notification';
-  
+  if (!token) return res.status(404).json({ error: "No push token found" });
+
+  let title = "Notification";
+  let body = "You have a new notification";
+
   switch (type) {
-    case 'missed_call':
-      title = 'Missed Call';
-      body = `Missed call from ${name || 'someone'}`;
+    case "missed_call":
+      title = "Missed Call";
+      body = `Missed call from ${name || "someone"}`;
       break;
-    case 'call_request':
-      title = 'Incoming Call';
-      body = `You have a call request from ${name || 'someone'}`;
+    case "call_request":
+      title = "Incoming Call";
+      body = `You have a call request from ${name || "someone"}`;
       break;
-    case 'getting_online':
-      title = 'Contact Online';
-      body = `${name || 'Someone'} from your contacts is getting online`;
+    case "getting_online":
+      title = "Contact Online";
+      body = `${name || "Someone"} from your contacts is getting online`;
       break;
-    case 'waiting_answer':
-      title = 'Waiting for Answer';
-      body = `${name || 'Someone'} is waiting for answer if you're online`;
+    case "waiting_answer":
+      title = "Waiting for Answer";
+      body = `${name || "Someone"} is waiting for answer if you're online`;
       break;
   }
-  
+
   await sendPushNotification(token, title, body);
   res.json({ success: true });
 });
@@ -738,21 +826,23 @@ app.post('/api/simulate-notification', async (req, res) => {
  * and forwards a push notification via the Expo Push API.
  * This fires even when the recipient app is completely closed.
  */
-app.post('/api/push-message', async (req, res) => {
+app.post("/api/push-message", async (req, res) => {
   try {
-    const { recipientId, senderName, messageText, type = 'chat' } = req.body;
+    const { recipientId, senderName, messageText, type = "chat" } = req.body;
     if (!recipientId || !senderName) {
-      return res.status(400).json({ error: 'recipientId and senderName are required' });
+      return res
+        .status(400)
+        .json({ error: "recipientId and senderName are required" });
     }
 
     const token = await getPushTokenForUser(recipientId);
     if (!token) {
       console.log(`[Push] No push token found for recipient: ${recipientId}`);
-      return res.json({ success: false, reason: 'no_token' });
+      return res.json({ success: false, reason: "no_token" });
     }
 
     const title = `💬 ${senderName}`;
-    const body = messageText || 'Sent you a message';
+    const body = messageText || "Sent you a message";
 
     await sendPushNotification(token, title, body, {
       type,
@@ -760,19 +850,21 @@ app.post('/api/push-message', async (req, res) => {
       senderName,
     });
 
-    console.log(`[Push] Sent message notification to ${recipientId} (${senderName})`);
+    console.log(
+      `[Push] Sent message notification to ${recipientId} (${senderName})`,
+    );
     res.json({ success: true });
   } catch (err) {
-    console.error('[Push] push-message error:', err.message);
-    res.status(500).json({ error: 'Failed to send push notification' });
+    console.error("[Push] push-message error:", err.message);
+    res.status(500).json({ error: "Failed to send push notification" });
   }
 });
 
 // Translate text endpoint
-app.post('/api/translate', async (req, res) => {
+app.post("/api/translate", async (req, res) => {
   const { text, targetLang } = req.body;
   if (!text || !targetLang) {
-    return res.status(400).json({ error: 'Missing text or targetLang' });
+    return res.status(400).json({ error: "Missing text or targetLang" });
   }
 
   try {
@@ -789,14 +881,16 @@ app.post('/api/translate', async (req, res) => {
     };
 
     const response = await callGeminiWithRotation(payload);
-    const translatedText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    const translatedText =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
     res.json({ translatedText });
   } catch (error) {
     const upstreamStatus = error.response?.status || 500;
-    const upstreamMessage = error.response?.data?.error?.message || error.message;
-    console.error('Translation error:', error.response?.data || error.message);
+    const upstreamMessage =
+      error.response?.data?.error?.message || error.message;
+    console.error("Translation error:", error.response?.data || error.message);
     res.status(upstreamStatus >= 400 && upstreamStatus < 500 ? 502 : 500).json({
-      error: 'Failed to translate text. All API keys may be exhausted.',
+      error: "Failed to translate text. All API keys may be exhausted.",
       details: upstreamMessage,
       model: GEMINI_MODEL,
     });
@@ -804,18 +898,18 @@ app.post('/api/translate', async (req, res) => {
 });
 
 // Translate voice endpoint (STT + Translation in single pass)
-app.post('/api/translate-voice', upload.single('audio'), async (req, res) => {
+app.post("/api/translate-voice", upload.single("audio"), async (req, res) => {
   const { targetLang } = req.body;
   if (!req.file) {
-    return res.status(400).json({ error: 'Missing audio file' });
+    return res.status(400).json({ error: "Missing audio file" });
   }
   if (!targetLang) {
-    return res.status(400).json({ error: 'Missing targetLang' });
+    return res.status(400).json({ error: "Missing targetLang" });
   }
 
   try {
-    const base64Audio = req.file.buffer.toString('base64');
-    const mimeType = req.file.mimetype || 'audio/m4a';
+    const base64Audio = req.file.buffer.toString("base64");
+    const mimeType = req.file.mimetype || "audio/m4a";
 
     const payload = {
       contents: [
@@ -837,19 +931,28 @@ app.post('/api/translate-voice', upload.single('audio'), async (req, res) => {
 
     const response = await callGeminiWithRotation(payload);
 
-    let rawText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-    if (rawText.startsWith('```')) {
-      rawText = rawText.replace(/^```(json)?/, '').replace(/```$/, '').trim();
+    let rawText =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+    if (rawText.startsWith("```")) {
+      rawText = rawText
+        .replace(/^```(json)?/, "")
+        .replace(/```$/, "")
+        .trim();
     }
 
     const result = JSON.parse(rawText);
     res.json(result);
   } catch (error) {
     const upstreamStatus = error.response?.status || 500;
-    const upstreamMessage = error.response?.data?.error?.message || error.message;
-    console.error('Voice translation error:', error.response?.data || error.message);
+    const upstreamMessage =
+      error.response?.data?.error?.message || error.message;
+    console.error(
+      "Voice translation error:",
+      error.response?.data || error.message,
+    );
     res.status(upstreamStatus >= 400 && upstreamStatus < 500 ? 502 : 500).json({
-      error: 'Failed to process voice translation. All API keys may be exhausted.',
+      error:
+        "Failed to process voice translation. All API keys may be exhausted.",
       details: upstreamMessage,
       model: GEMINI_MODEL,
     });
@@ -857,29 +960,31 @@ app.post('/api/translate-voice', upload.single('audio'), async (req, res) => {
 });
 
 // AI Chat companion endpoint
-app.post('/api/chat', async (req, res) => {
+app.post("/api/chat", async (req, res) => {
   const { message, language, history = [], userKey } = req.body;
-  
+
   // Also accept text/targetLang for backward compatibility
   const text = message || req.body.text;
   const targetLang = language || req.body.targetLang;
 
   if (!text || !targetLang) {
-    return res.status(400).json({ error: 'Missing text/message or targetLang/language' });
+    return res
+      .status(400)
+      .json({ error: "Missing text/message or targetLang/language" });
   }
 
   try {
     // Convert history format to Gemini format if provided
-    const formattedHistory = history.map(msg => ({
-      role: msg.sender === 'user' ? 'user' : 'model',
-      parts: [{ text: msg.text }]
+    const formattedHistory = history.map((msg) => ({
+      role: msg.sender === "user" ? "user" : "model",
+      parts: [{ text: msg.text }],
     }));
 
     const payload = {
       contents: [
         ...formattedHistory,
         {
-          role: 'user',
+          role: "user",
           parts: [
             {
               text: `You are a friendly, conversational AI companion in a language learning and translation app. Respond naturally to the user's message in "${targetLang}". Do NOT translate the user's message, just reply to it as a chat partner would. User message: "${text}"`,
@@ -890,35 +995,41 @@ app.post('/api/chat', async (req, res) => {
     };
 
     const response = await callGeminiWithRotation(payload);
-    const replyText = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-    
+    const replyText =
+      response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+
     // Send push notification if token exists
     if (userKey) {
       const token = pushTokens.get(userKey);
       if (token) {
-        await sendPushNotification(token, 'New Message', `Incoming message from ${targetLang} partner`);
+        await sendPushNotification(
+          token,
+          "New Message",
+          `Incoming message from ${targetLang} partner`,
+        );
       }
     }
 
     res.json({ replyText });
   } catch (error) {
     const upstreamStatus = error.response?.status || 500;
-    const upstreamMessage = error.response?.data?.error?.message || error.message;
-    console.error('Chat error:', error.response?.data || error.message);
+    const upstreamMessage =
+      error.response?.data?.error?.message || error.message;
+    console.error("Chat error:", error.response?.data || error.message);
     res.status(upstreamStatus >= 400 && upstreamStatus < 500 ? 502 : 500).json({
-      error: 'Failed to generate chat response. All API keys may be exhausted.',
+      error: "Failed to generate chat response. All API keys may be exhausted.",
       details: upstreamMessage,
     });
   }
 });
 
 // Contacts endpoints
-app.post('/api/check-contacts', (req, res) => {
+app.post("/api/check-contacts", (req, res) => {
   try {
     const { phoneNumbers = [] } = req.body;
-    
+
     if (!Array.isArray(phoneNumbers)) {
-      return res.status(400).json({ error: 'phoneNumbers must be an array' });
+      return res.status(400).json({ error: "phoneNumbers must be an array" });
     }
 
     // Mock implementation for prototype:
@@ -926,67 +1037,69 @@ app.post('/api/check-contacts', (req, res) => {
     // E.g., if phone number contains a '5' or ends in an even digit, we say they exist.
     const results = phoneNumbers.map((phone) => {
       // Remove all non-numeric characters for check
-      const digits = phone.replace(/\D/g, '');
-      const lastDigit = parseInt(digits.slice(-1) || '0', 10);
-      
+      const digits = phone.replace(/\D/g, "");
+      const lastDigit = parseInt(digits.slice(-1) || "0", 10);
+
       const hasAccount = lastDigit % 2 === 0;
 
       return {
         phone,
-        hasUnityAccount: hasAccount
+        hasUnityAccount: hasAccount,
       };
     });
 
     res.json({ contacts: results });
   } catch (error) {
-    console.error('Check contacts error:', error);
-    res.status(500).json({ error: 'Failed to check contacts.' });
+    console.error("Check contacts error:", error);
+    res.status(500).json({ error: "Failed to check contacts." });
   }
 });
 
 // Post feed endpoints
-app.get('/api/posts', async (req, res) => {
+app.get("/api/posts", async (req, res) => {
   try {
-    const userKey = req.query.userKey || req.header('x-user-key') || '';
+    const userKey = req.query.userKey || req.header("x-user-key") || "";
     const posts = await getPostsList(userKey);
     res.json(posts);
   } catch (error) {
-    console.error('Get posts error:', error);
-    res.status(500).json({ error: 'Failed to load posts.' });
+    console.error("Get posts error:", error);
+    res.status(500).json({ error: "Failed to load posts." });
   }
 });
 
-app.post('/api/posts', upload.array('images', 10), async (req, res) => {
+app.post("/api/posts", upload.array("images", 10), async (req, res) => {
   try {
     const {
       content,
-      authorId = '',
-      authorName = '',
-      authorAvatar = '',
-      authorFlag = '🌍',
-      authorNativeLang = '',
-      imageUrls = '[]',
+      authorId = "",
+      authorName = "",
+      authorAvatar = "",
+      authorFlag = "🌍",
+      authorNativeLang = "",
+      imageUrls = "[]",
     } = req.body;
 
     if (!content || !content.trim()) {
-      return res.status(400).json({ error: 'Missing content' });
+      return res.status(400).json({ error: "Missing content" });
     }
 
     let parsedImageUrls = [];
     try {
       parsedImageUrls = JSON.parse(imageUrls);
     } catch (e) {
-      if (typeof imageUrls === 'string' && imageUrls.trim()) {
+      if (typeof imageUrls === "string" && imageUrls.trim()) {
         parsedImageUrls = [imageUrls];
       }
     }
 
     let finalImageUrls = [...parsedImageUrls];
     let imageFileIds = [];
-    
+
     if (req.files && req.files.length > 0) {
       if (!imagekit) {
-        return res.status(503).json({ error: 'ImageKit is not configured on the server.' });
+        return res
+          .status(503)
+          .json({ error: "ImageKit is not configured on the server." });
       }
       for (const file of req.files) {
         const url = await uploadImageToImageKit(file);
@@ -1023,23 +1136,23 @@ app.post('/api/posts', upload.array('images', 10), async (req, res) => {
 
     res.status(201).json(normalizePost(saved));
   } catch (error) {
-    console.error('Create post error:', error);
-    res.status(500).json({ error: error.message || 'Failed to create post.' });
+    console.error("Create post error:", error);
+    res.status(500).json({ error: error.message || "Failed to create post." });
   }
 });
 
-app.post('/api/posts/:postId/like', async (req, res) => {
+app.post("/api/posts/:postId/like", async (req, res) => {
   try {
     const { postId } = req.params;
-    const { userKey = '' } = req.body;
+    const { userKey = "" } = req.body;
     if (!userKey) {
-      return res.status(400).json({ error: 'Missing userKey' });
+      return res.status(400).json({ error: "Missing userKey" });
     }
 
     if (useMongo) {
       const post = await Post.findOne({ postId });
       if (!post) {
-        return res.status(404).json({ error: 'Post not found' });
+        return res.status(404).json({ error: "Post not found" });
       }
       const alreadyLiked = post.likedBy.includes(userKey);
       if (alreadyLiked) {
@@ -1054,9 +1167,11 @@ app.post('/api/posts/:postId/like', async (req, res) => {
       return res.json(normalizePost(post, userKey));
     }
 
-    const post = memoryStore.posts.find((item) => item.postId === postId || item.id === postId);
+    const post = memoryStore.posts.find(
+      (item) => item.postId === postId || item.id === postId,
+    );
     if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
+      return res.status(404).json({ error: "Post not found" });
     }
     post.likedBy = Array.isArray(post.likedBy) ? post.likedBy : [];
     const alreadyLiked = post.likedBy.includes(userKey);
@@ -1071,24 +1186,24 @@ app.post('/api/posts/:postId/like', async (req, res) => {
     await saveMemoryPost(post);
     return res.json(normalizePost(post, userKey));
   } catch (error) {
-    console.error('Toggle like error:', error);
-    res.status(500).json({ error: 'Failed to update like.' });
+    console.error("Toggle like error:", error);
+    res.status(500).json({ error: "Failed to update like." });
   }
 });
 
-app.post('/api/posts/:postId/comments', async (req, res) => {
+app.post("/api/posts/:postId/comments", async (req, res) => {
   try {
     const { postId } = req.params;
     const {
       id = `comment_${Date.now()}`,
-      authorId = '',
-      authorName = '',
-      authorAvatar = '',
-      content = '',
+      authorId = "",
+      authorName = "",
+      authorAvatar = "",
+      content = "",
     } = req.body;
 
     if (!content.trim()) {
-      return res.status(400).json({ error: 'Missing comment content' });
+      return res.status(400).json({ error: "Missing comment content" });
     }
 
     const comment = {
@@ -1103,7 +1218,7 @@ app.post('/api/posts/:postId/comments', async (req, res) => {
     if (useMongo) {
       const post = await Post.findOne({ postId });
       if (!post) {
-        return res.status(404).json({ error: 'Post not found' });
+        return res.status(404).json({ error: "Post not found" });
       }
       post.comments.push(comment);
       post.updatedAt = new Date();
@@ -1111,9 +1226,11 @@ app.post('/api/posts/:postId/comments', async (req, res) => {
       return res.json(normalizePost(post));
     }
 
-    const post = memoryStore.posts.find((item) => item.postId === postId || item.id === postId);
+    const post = memoryStore.posts.find(
+      (item) => item.postId === postId || item.id === postId,
+    );
     if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
+      return res.status(404).json({ error: "Post not found" });
     }
     post.comments = Array.isArray(post.comments) ? post.comments : [];
     post.comments.push(comment);
@@ -1121,23 +1238,25 @@ app.post('/api/posts/:postId/comments', async (req, res) => {
     await saveMemoryPost(post);
     return res.json(normalizePost(post));
   } catch (error) {
-    console.error('Add comment error:', error);
-    res.status(500).json({ error: 'Failed to add comment.' });
+    console.error("Add comment error:", error);
+    res.status(500).json({ error: "Failed to add comment." });
   }
 });
 
-app.delete('/api/posts/:postId', async (req, res) => {
+app.delete("/api/posts/:postId", async (req, res) => {
   try {
     const { postId } = req.params;
-    const { userKey = '' } = req.body;
+    const { userKey = "" } = req.body;
 
     if (useMongo) {
       const post = await Post.findOne({ postId });
       if (!post) {
-        return res.status(404).json({ error: 'Post not found' });
+        return res.status(404).json({ error: "Post not found" });
       }
       if (userKey && userKey !== post.authorId && userKey !== post.authorName) {
-        return res.status(403).json({ error: 'Not allowed to delete this post' });
+        return res
+          .status(403)
+          .json({ error: "Not allowed to delete this post" });
       }
       await Post.deleteOne({ postId });
       return res.json({ success: true });
@@ -1145,36 +1264,40 @@ app.delete('/api/posts/:postId', async (req, res) => {
 
     const post = await findPostById(postId);
     if (!post) {
-      return res.status(404).json({ error: 'Post not found' });
+      return res.status(404).json({ error: "Post not found" });
     }
     if (userKey && userKey !== post.authorId && userKey !== post.authorName) {
-      return res.status(403).json({ error: 'Not allowed to delete this post' });
+      return res.status(403).json({ error: "Not allowed to delete this post" });
     }
     await deleteMemoryPost(postId);
     return res.json({ success: true });
   } catch (error) {
-    console.error('Delete post error:', error);
-    res.status(500).json({ error: 'Failed to delete post.' });
+    console.error("Delete post error:", error);
+    res.status(500).json({ error: "Failed to delete post." });
   }
 });
 
 // Explore feed combines registered user profiles from DB/memory with presets
-app.get('/api/explore', async (req, res) => {
+app.get("/api/explore", async (req, res) => {
   try {
     let registeredProfiles = [];
     const now = Date.now();
 
     if (useMongo) {
-      const dbProfiles = await UserProfile.find().sort({ updatedAt: -1 }).lean();
-      registeredProfiles = dbProfiles.map(p => {
-        const lastActiveTs = p.lastActive ? new Date(p.lastActive).getTime() : 0;
+      const dbProfiles = await UserProfile.find()
+        .sort({ updatedAt: -1 })
+        .lean();
+      registeredProfiles = dbProfiles.map((p) => {
+        const lastActiveTs = p.lastActive
+          ? new Date(p.lastActive).getTime()
+          : 0;
         const memoryTs = activeSessions.get(p.uid) || 0;
         const latestTs = Math.max(lastActiveTs, memoryTs);
         // Online if pinged within the last 5 minutes (300,000 ms)
-        const isOnline = (now - latestTs) <= 300000;
+        const isOnline = now - latestTs <= 300000;
         return {
           id: p.uid,
-          email: p.email || '',
+          email: p.email || "",
           name: p.name,
           avatar: p.avatar,
           flag: p.flag,
@@ -1182,18 +1305,20 @@ app.get('/api/explore', async (req, res) => {
           bio: p.bio,
           isUnityUser: true,
           isOnline: isOnline,
-          lastActive: latestTs
+          lastActive: latestTs,
         };
       });
     } else {
-      registeredProfiles = Array.from(memoryUserProfiles.values()).map(p => {
-        const lastActiveTs = p.lastActive ? new Date(p.lastActive).getTime() : 0;
+      registeredProfiles = Array.from(memoryUserProfiles.values()).map((p) => {
+        const lastActiveTs = p.lastActive
+          ? new Date(p.lastActive).getTime()
+          : 0;
         const memoryTs = activeSessions.get(p.uid) || 0;
         const latestTs = Math.max(lastActiveTs, memoryTs);
-        const isOnline = (now - latestTs) <= 300000;
+        const isOnline = now - latestTs <= 300000;
         return {
           id: p.uid,
-          email: p.email || '',
+          email: p.email || "",
           name: p.name,
           avatar: p.avatar,
           flag: p.flag,
@@ -1201,7 +1326,7 @@ app.get('/api/explore', async (req, res) => {
           bio: p.bio,
           isUnityUser: true,
           isOnline: isOnline,
-          lastActive: latestTs
+          lastActive: latestTs,
         };
       });
     }
@@ -1211,8 +1336,8 @@ app.get('/api/explore', async (req, res) => {
     const uniqueProfiles = [];
     const seenKeys = new Set();
     for (const profile of allProfiles) {
-      const cleanEmail = (profile.email || '').trim().toLowerCase();
-      const isPlaceholder = !cleanEmail || cleanEmail.includes('@example.com');
+      const cleanEmail = (profile.email || "").trim().toLowerCase();
+      const isPlaceholder = !cleanEmail || cleanEmail.includes("@example.com");
       const key = isPlaceholder ? profile.id : cleanEmail;
 
       if (!seenKeys.has(key)) {
@@ -1223,7 +1348,7 @@ app.get('/api/explore', async (req, res) => {
 
     res.json(uniqueProfiles);
   } catch (err) {
-    console.error('Explore fetch error:', err);
+    console.error("Explore fetch error:", err);
     res.json(EXPLORE_PEOPLE); // fallback
   }
 });
@@ -1232,10 +1357,10 @@ app.get('/api/explore', async (req, res) => {
 const roomPresence = new Map();
 
 // POST /api/users/room-presence - Update active conversation room presence
-app.post('/api/users/room-presence', (req, res) => {
+app.post("/api/users/room-presence", (req, res) => {
   try {
     const { uid, partnerId, active } = req.body;
-    if (!uid) return res.status(400).json({ error: 'uid is required' });
+    if (!uid) return res.status(400).json({ error: "uid is required" });
 
     if (active && partnerId) {
       roomPresence.set(uid, partnerId);
@@ -1245,12 +1370,12 @@ app.post('/api/users/room-presence', (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Room presence update failed' });
+    res.status(500).json({ error: "Room presence update failed" });
   }
 });
 
 // GET /api/users/room-presence/:uid/:partnerId - Check if both users are in room and partner online status
-app.get('/api/users/room-presence/:uid/:partnerId', async (req, res) => {
+app.get("/api/users/room-presence/:uid/:partnerId", async (req, res) => {
   try {
     const { uid, partnerId } = req.params;
     const now = Date.now();
@@ -1267,41 +1392,57 @@ app.get('/api/users/room-presence/:uid/:partnerId', async (req, res) => {
         lastActiveTs = new Date(dbUser.lastActive).getTime();
       }
     }
-    const isOnline = (now - lastActiveTs) <= 300000;
+    const isOnline = now - lastActiveTs <= 300000;
 
     res.json({
       bothInRoom,
       isOnline,
-      lastActive: lastActiveTs
+      lastActive: lastActiveTs,
     });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch room presence' });
+    res.status(500).json({ error: "Failed to fetch room presence" });
   }
 });
 
 // POST /api/messages/send - Send a chat message between users
-app.post('/api/messages/send', async (req, res) => {
+app.post("/api/messages/send", async (req, res) => {
   try {
-    const { id, senderId, recipientId, senderName, senderAvatar, text, transText, origLang, transLang, timestamp } = req.body;
+    const {
+      id,
+      senderId,
+      recipientId,
+      senderName,
+      senderAvatar,
+      text,
+      transText,
+      origLang,
+      transLang,
+      timestamp,
+    } = req.body;
     if (!senderId || !recipientId || !text) {
-      return res.status(400).json({ error: 'senderId, recipientId, and text are required' });
+      return res
+        .status(400)
+        .json({ error: "senderId, recipientId, and text are required" });
     }
 
     const msgData = {
       id: id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       senderId,
       recipientId,
-      senderName: senderName || 'User',
-      senderAvatar: senderAvatar || '',
+      senderName: senderName || "User",
+      senderAvatar: senderAvatar || "",
       text,
-      transText: transText || '',
-      origLang: origLang || '',
-      transLang: transLang || '',
-      timestamp: timestamp || Date.now()
+      transText: transText || "",
+      origLang: origLang || "",
+      transLang: transLang || "",
+      timestamp: timestamp || Date.now(),
     };
 
     if (useMongo) {
-      await ChatMessage.findOneAndUpdate({ id: msgData.id }, msgData, { upsert: true, new: true });
+      await ChatMessage.findOneAndUpdate({ id: msgData.id }, msgData, {
+        upsert: true,
+        new: true,
+      });
     } else {
       memoryChatMessages.push(msgData);
     }
@@ -1310,41 +1451,42 @@ app.post('/api/messages/send', async (req, res) => {
     let recipientPushToken = pushTokens.get(recipientId);
     if (!recipientPushToken && useMongo) {
       const recipient = await UserProfile.findOne({ uid: recipientId }).lean();
-      if (recipient && recipient.pushToken) recipientPushToken = recipient.pushToken;
+      if (recipient && recipient.pushToken)
+        recipientPushToken = recipient.pushToken;
     }
 
     if (recipientPushToken) {
       try {
         const message = {
           to: recipientPushToken,
-          sound: 'default',
-          title: `Message from ${senderName || 'Contact'}`,
+          sound: "default",
+          title: `Message from ${senderName || "Contact"}`,
           body: text,
-          data: { type: 'chat', senderId, senderName, text }
+          data: { type: "chat", senderId, senderName, text },
         };
-        await fetch('https://exp.host/--/api/v2/push/send', {
-          method: 'POST',
+        await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
           headers: {
-            'Accept': 'application/json',
-            'Accept-encoding': 'gzip, deflate',
-            'Content-Type': 'application/json',
+            Accept: "application/json",
+            "Accept-encoding": "gzip, deflate",
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(message),
         });
       } catch (pushErr) {
-        console.warn('[Push] Error sending push for chat message:', pushErr);
+        console.warn("[Push] Error sending push for chat message:", pushErr);
       }
     }
 
     res.json({ success: true, message: msgData });
   } catch (err) {
-    console.error('[Messages] Send error:', err);
-    res.status(500).json({ error: 'Failed to send message' });
+    console.error("[Messages] Send error:", err);
+    res.status(500).json({ error: "Failed to send message" });
   }
 });
 
 // GET /api/messages/sync/:user1/:user2 - Sync chat history between two users
-app.get('/api/messages/sync/:user1/:user2', async (req, res) => {
+app.get("/api/messages/sync/:user1/:user2", async (req, res) => {
   try {
     const { user1, user2 } = req.params;
     const since = req.query.since ? parseInt(req.query.since, 10) : 0;
@@ -1354,91 +1496,102 @@ app.get('/api/messages/sync/:user1/:user2', async (req, res) => {
       messages = await ChatMessage.find({
         $or: [
           { senderId: user1, recipientId: user2 },
-          { senderId: user2, recipientId: user1 }
+          { senderId: user2, recipientId: user1 },
         ],
-        timestamp: { $gt: since }
-      }).sort({ timestamp: 1 }).lean();
+        timestamp: { $gt: since },
+      })
+        .sort({ timestamp: 1 })
+        .lean();
     } else {
       messages = memoryChatMessages.filter(
-        m => ((m.senderId === user1 && m.recipientId === user2) || (m.senderId === user2 && m.recipientId === user1)) && m.timestamp > since
+        (m) =>
+          ((m.senderId === user1 && m.recipientId === user2) ||
+            (m.senderId === user2 && m.recipientId === user1)) &&
+          m.timestamp > since,
       );
     }
 
     res.json({ success: true, messages });
   } catch (err) {
-    console.error('[Messages] Sync error:', err);
-    res.status(500).json({ error: 'Failed to sync messages' });
+    console.error("[Messages] Sync error:", err);
+    res.status(500).json({ error: "Failed to sync messages" });
   }
 });
 
 // POST /api/users/heartbeat - Heartbeat ping to track live online status
-app.post('/api/users/heartbeat', async (req, res) => {
+app.post("/api/users/heartbeat", async (req, res) => {
   try {
     const { uid } = req.body;
-    if (!uid) return res.status(400).json({ error: 'uid is required' });
+    if (!uid) return res.status(400).json({ error: "uid is required" });
 
     const now = Date.now();
     activeSessions.set(uid, now);
 
     if (useMongo) {
-      await UserProfile.findOneAndUpdate({ uid }, { lastActive: new Date(now) }).catch(() => {});
+      await UserProfile.findOneAndUpdate(
+        { uid },
+        { lastActive: new Date(now) },
+      ).catch(() => {});
     }
 
     res.json({ success: true, timestamp: now });
   } catch (err) {
-    res.status(500).json({ error: 'Heartbeat error' });
+    res.status(500).json({ error: "Heartbeat error" });
   }
 });
 
 // POST /api/users - Create or update a user profile globally
-app.post('/api/users', async (req, res) => {
+app.post("/api/users", async (req, res) => {
   try {
-    const { 
-      uid, 
-      name, 
-      avatar = '', 
-      flag = '🇺🇸', 
-      langName = 'English', 
-      bio = 'Available on Xaylite',
+    const {
+      uid,
+      name,
+      avatar = "",
+      flag = "🇺🇸",
+      langName = "English",
+      bio = "Available on Xaylite",
       email,
       authMethod,
       location,
       appVersion,
       platform,
-      nativeLang = 'en',
-      unityAILang = 'es',
-      phone = '',
+      nativeLang = "en",
+      unityAILang = "es",
+      phone = "",
       nativeLangSelected = false,
       voiceAITrained = false,
-      micTested = false
+      micTested = false,
     } = req.body;
-    
+
     if (!uid || !name) {
-      return res.status(400).json({ error: 'uid and name are required' });
+      return res.status(400).json({ error: "uid and name are required" });
     }
 
-    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, "");
     const derivedEmail = email || `${cleanName || uid}@example.com`;
-    
-    let derivedAuthMethod = authMethod || 'email';
-    if (uid.toLowerCase().includes('google')) derivedAuthMethod = 'google';
-    else if (uid.toLowerCase().includes('apple')) derivedAuthMethod = 'apple';
-    
+
+    let derivedAuthMethod = authMethod || "email";
+    if (uid.toLowerCase().includes("google")) derivedAuthMethod = "google";
+    else if (uid.toLowerCase().includes("apple")) derivedAuthMethod = "apple";
+
     const derivedLocation = location || flagToCountry(flag);
-    const derivedAppVersion = appVersion || '1.0.0';
-    const derivedPlatform = platform || 'unknown';
+    const derivedAppVersion = appVersion || "1.0.0";
+    const derivedPlatform = platform || "unknown";
 
     // Search for existing user profile by email first (to prevent duplicate accounts for same email)
     let existingUser = null;
-    const isRealEmail = derivedEmail && !derivedEmail.includes('@example.com');
+    const isRealEmail = derivedEmail && !derivedEmail.includes("@example.com");
 
     if (isRealEmail) {
-      const escapedEmail = derivedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const escapedEmail = derivedEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       if (useMongo) {
-        existingUser = await UserProfile.findOne({ email: new RegExp('^' + escapedEmail + '$', 'i') }).lean();
+        existingUser = await UserProfile.findOne({
+          email: new RegExp("^" + escapedEmail + "$", "i"),
+        }).lean();
       } else {
         existingUser = Array.from(memoryUserProfiles.values()).find(
-          p => p.email && p.email.toLowerCase() === derivedEmail.toLowerCase()
+          (p) =>
+            p.email && p.email.toLowerCase() === derivedEmail.toLowerCase(),
         );
       }
     }
@@ -1451,10 +1604,16 @@ app.post('/api/users', async (req, res) => {
         existingUser = memoryUserProfiles.get(uid);
       }
     }
-    
+
     // For real users, use their normalized email as their canonical UID to ensure uniqueness
-    const canonicalUid = isRealEmail ? derivedEmail.toLowerCase() : (existingUser ? existingUser.uid : uid);
-    const derivedCreatedAt = existingUser ? (existingUser.createdAt || existingUser.createdAtDate || new Date()) : new Date();
+    const canonicalUid = isRealEmail
+      ? derivedEmail.toLowerCase()
+      : existingUser
+        ? existingUser.uid
+        : uid;
+    const derivedCreatedAt = existingUser
+      ? existingUser.createdAt || existingUser.createdAtDate || new Date()
+      : new Date();
 
     const profileData = {
       uid: canonicalUid,
@@ -1476,16 +1635,25 @@ app.post('/api/users', async (req, res) => {
       micTested,
       createdAt: derivedCreatedAt,
       updatedAt: new Date(),
-      lastActive: new Date()
+      lastActive: new Date(),
     };
     activeSessions.set(canonicalUid, Date.now());
 
     if (useMongo) {
-      await UserProfile.findOneAndUpdate({ uid: canonicalUid }, profileData, { upsert: true, new: true });
+      await UserProfile.findOneAndUpdate({ uid: canonicalUid }, profileData, {
+        upsert: true,
+        new: true,
+      });
       // Delete any legacy duplicate documents in MongoDB that shared the same email address
       if (isRealEmail) {
-        const escapedEmail = derivedEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        await UserProfile.deleteMany({ email: new RegExp('^' + escapedEmail + '$', 'i'), uid: { $ne: canonicalUid } });
+        const escapedEmail = derivedEmail.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&",
+        );
+        await UserProfile.deleteMany({
+          email: new RegExp("^" + escapedEmail + "$", "i"),
+          uid: { $ne: canonicalUid },
+        });
       }
     } else {
       if (isRealEmail) {
@@ -1498,44 +1666,53 @@ app.post('/api/users', async (req, res) => {
       memoryUserProfiles.set(canonicalUid, profileData);
     }
 
-    console.log(`[UserProfile] Synced profile globally for user: ${name} (${canonicalUid})`);
+    console.log(
+      `[UserProfile] Synced profile globally for user: ${name} (${canonicalUid})`,
+    );
     res.json({ success: true, profile: profileData });
   } catch (err) {
-    console.error('[UserProfile] Sync error:', err.message);
-    res.status(500).json({ error: 'Failed to sync user profile' });
+    console.error("[UserProfile] Sync error:", err.message);
+    res.status(500).json({ error: "Failed to sync user profile" });
   }
 });
 
 // GET /api/users/email/:email - Check if user exists by email and return their profile
-app.get('/api/users/email/:email', async (req, res) => {
+app.get("/api/users/email/:email", async (req, res) => {
   try {
     const { email } = req.params;
     if (!email) {
-      return res.status(400).json({ error: 'email parameter is required' });
+      return res.status(400).json({ error: "email parameter is required" });
     }
     const targetEmail = email.trim().toLowerCase();
-    
+
     let user = null;
     if (useMongo) {
       // Escape regex special characters
-      const escapedEmail = targetEmail.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      user = await UserProfile.findOne({ email: new RegExp('^' + escapedEmail + '$', 'i') }).lean();
+      const escapedEmail = targetEmail.replace(
+        /[-\/\\^$*+?.()|[\]{}]/g,
+        "\\$&",
+      );
+      user = await UserProfile.findOne({
+        email: new RegExp("^" + escapedEmail + "$", "i"),
+      }).lean();
     } else {
       user = Array.from(memoryUserProfiles.values()).find(
-        u => u.email && u.email.trim().toLowerCase() === targetEmail
+        (u) => u.email && u.email.trim().toLowerCase() === targetEmail,
       );
     }
-    
+
     if (user) {
-      console.log(`[UserProfile] Found existing profile by email: ${user.name} (${user.email})`);
+      console.log(
+        `[UserProfile] Found existing profile by email: ${user.name} (${user.email})`,
+      );
       res.json({ success: true, exists: true, user });
     } else {
       console.log(`[UserProfile] No profile found for email: ${targetEmail}`);
       res.json({ success: true, exists: false });
     }
   } catch (err) {
-    console.error('[UserProfile] Get by email error:', err.message);
-    res.status(500).json({ error: 'Failed to retrieve user profile by email' });
+    console.error("[UserProfile] Get by email error:", err.message);
+    res.status(500).json({ error: "Failed to retrieve user profile by email" });
   }
 });
 
@@ -1545,11 +1722,13 @@ const callAudioBuffers = new Map();
 const callSubtitles = new Map();
 
 // POST /api/calls/initiate - Initiate a call and send call request push notification
-app.post('/api/calls/initiate', async (req, res) => {
+app.post("/api/calls/initiate", async (req, res) => {
   try {
     const { callerId, partnerId, callerName, callerAvatar } = req.body;
     if (!callerId || !partnerId) {
-      return res.status(400).json({ error: 'callerId and partnerId are required' });
+      return res
+        .status(400)
+        .json({ error: "callerId and partnerId are required" });
     }
 
     const callId = `call_${Date.now()}`;
@@ -1559,8 +1738,8 @@ app.post('/api/calls/initiate', async (req, res) => {
       partnerId,
       callerName,
       callerAvatar,
-      status: 'ringing',
-      createdAt: Date.now()
+      status: "ringing",
+      createdAt: Date.now(),
     };
     activeCalls.set(callId, callSession);
     callAudioBuffers.set(callId, []);
@@ -1568,76 +1747,92 @@ app.post('/api/calls/initiate', async (req, res) => {
     // Dispatch incoming call push notification to the partner
     const token = await getPushTokenForUser(partnerId);
     if (token) {
-      console.log(`[Calls] Sending incoming call push notification to ${partnerId}...`);
-      sendPushNotification(token, '📞 Incoming Voice Call', `${callerName || 'Someone'} is calling you...`, {
-        type: 'incoming_call',
-        callId,
-        callerId,
-        callerName: callerName || 'Unknown Caller',
-        callerAvatar: callerAvatar || ''
-      }).catch(err => console.warn('[Calls] Push notification warning:', err.message));
+      console.log(
+        `[Calls] Sending incoming call push notification to ${partnerId}...`,
+      );
+      sendPushNotification(
+        token,
+        "📞 Incoming Voice Call",
+        `${callerName || "Someone"} is calling you...`,
+        {
+          type: "incoming_call",
+          callId,
+          callerId,
+          callerName: callerName || "Unknown Caller",
+          callerAvatar: callerAvatar || "",
+        },
+      ).catch((err) =>
+        console.warn("[Calls] Push notification warning:", err.message),
+      );
     } else {
-      console.log(`[Calls] No push token registered for target partner: ${partnerId}`);
+      console.log(
+        `[Calls] No push token registered for target partner: ${partnerId}`,
+      );
     }
 
-    res.json({ success: true, callId, status: 'ringing' });
+    res.json({ success: true, callId, status: "ringing" });
   } catch (err) {
-    console.error('[Calls] Initiate error:', err.message);
-    res.status(500).json({ error: 'Failed to initiate call' });
+    console.error("[Calls] Initiate error:", err.message);
+    res.status(500).json({ error: "Failed to initiate call" });
   }
 });
 
 // POST /api/calls/accept - Accept the call
-app.post('/api/calls/accept', (req, res) => {
+app.post("/api/calls/accept", (req, res) => {
   const { callId } = req.body;
   const session = activeCalls.get(callId);
   if (!session) {
-    return res.status(404).json({ error: 'Call session not found' });
+    return res.status(404).json({ error: "Call session not found" });
   }
-  session.status = 'connected';
+  session.status = "connected";
   console.log(`[Calls] Call ${callId} accepted and connected`);
-  res.json({ success: true, status: 'connected' });
+  res.json({ success: true, status: "connected" });
 });
 
 // POST /api/calls/reject - Reject the call
-app.post('/api/calls/reject', (req, res) => {
+app.post("/api/calls/reject", (req, res) => {
   const { callId } = req.body;
   const session = activeCalls.get(callId);
   if (!session) {
-    return res.status(404).json({ error: 'Call session not found' });
+    return res.status(404).json({ error: "Call session not found" });
   }
-  session.status = 'rejected';
+  session.status = "rejected";
   console.log(`[Calls] Call ${callId} rejected`);
-  res.json({ success: true, status: 'rejected' });
+  res.json({ success: true, status: "rejected" });
 });
 
 // POST /api/calls/end - End the call
-app.post('/api/calls/end', (req, res) => {
+app.post("/api/calls/end", (req, res) => {
   const { callId } = req.body;
   const session = activeCalls.get(callId);
   if (session) {
-    session.status = 'ended';
+    session.status = "ended";
     console.log(`[Calls] Call ${callId} ended`);
   }
-  res.json({ success: true, status: 'ended' });
+  res.json({ success: true, status: "ended" });
 });
 
 // GET /api/calls/status/:callId - Get current status of call
-app.get('/api/calls/status/:callId', (req, res) => {
+app.get("/api/calls/status/:callId", (req, res) => {
   const { callId } = req.params;
   const session = activeCalls.get(callId);
   if (!session) {
-    return res.json({ success: true, status: 'ended' });
+    return res.json({ success: true, status: "ended" });
   }
-  res.json({ success: true, status: session.status, callerId: session.callerId, partnerId: session.partnerId });
+  res.json({
+    success: true,
+    status: session.status,
+    callerId: session.callerId,
+    partnerId: session.partnerId,
+  });
 });
 
 // GET /api/calls/poll-active/:userId - Poll for any incoming call targeting this user
-app.get('/api/calls/poll-active/:userId', (req, res) => {
+app.get("/api/calls/poll-active/:userId", (req, res) => {
   const { userId } = req.params;
   // Search active call sessions for any ringing call targeting this user
   const incoming = Array.from(activeCalls.values()).find(
-    c => c.partnerId === userId && c.status === 'ringing'
+    (c) => c.partnerId === userId && c.status === "ringing",
   );
   if (incoming) {
     res.json({ success: true, incomingCall: incoming });
@@ -1647,17 +1842,17 @@ app.get('/api/calls/poll-active/:userId', (req, res) => {
 });
 
 // POST /api/calls/stream - Upload audio chunk
-app.post('/api/calls/stream', (req, res) => {
+app.post("/api/calls/stream", (req, res) => {
   const { callId, senderId, audio } = req.body;
   if (!callId || !senderId || !audio) {
-    return res.status(400).json({ error: 'Missing parameters' });
+    return res.status(400).json({ error: "Missing parameters" });
   }
 
   const buffers = callAudioBuffers.get(callId) || [];
   buffers.push({
     senderId,
     audio,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 
   // Keep last 25 chunks
@@ -1669,31 +1864,34 @@ app.post('/api/calls/stream', (req, res) => {
 });
 
 // GET /api/calls/poll-audio/:callId/:receiverId/:lastTimestamp - Poll new audio chunks
-app.get('/api/calls/poll-audio/:callId/:receiverId/:lastTimestamp', (req, res) => {
-  const { callId, receiverId, lastTimestamp } = req.params;
-  const buffers = callAudioBuffers.get(callId) || [];
-  const ts = parseInt(lastTimestamp) || 0;
-  
-  const newChunks = buffers.filter(
-    chunk => chunk.senderId !== receiverId && chunk.timestamp > ts
-  );
-  
-  res.json({ success: true, chunks: newChunks });
-});
+app.get(
+  "/api/calls/poll-audio/:callId/:receiverId/:lastTimestamp",
+  (req, res) => {
+    const { callId, receiverId, lastTimestamp } = req.params;
+    const buffers = callAudioBuffers.get(callId) || [];
+    const ts = parseInt(lastTimestamp) || 0;
+
+    const newChunks = buffers.filter(
+      (chunk) => chunk.senderId !== receiverId && chunk.timestamp > ts,
+    );
+
+    res.json({ success: true, chunks: newChunks });
+  },
+);
 
 // POST /api/calls/subtitles - Submit a subtitle segment (transcription + translation)
-app.post('/api/calls/subtitles', (req, res) => {
+app.post("/api/calls/subtitles", (req, res) => {
   const { callId, senderId, text, translation } = req.body;
   if (!callId || !senderId || !text) {
-    return res.status(400).json({ error: 'Missing parameters' });
+    return res.status(400).json({ error: "Missing parameters" });
   }
 
   const list = callSubtitles.get(callId) || [];
   list.push({
     senderId,
     text,
-    translation: translation || '',
-    timestamp: Date.now()
+    translation: translation || "",
+    timestamp: Date.now(),
   });
 
   // Keep last 50 subtitle items
@@ -1705,58 +1903,62 @@ app.post('/api/calls/subtitles', (req, res) => {
 });
 
 // GET /api/calls/subtitles/:callId/:lastTimestamp - Poll new subtitles
-app.get('/api/calls/subtitles/:callId/:lastTimestamp', (req, res) => {
+app.get("/api/calls/subtitles/:callId/:lastTimestamp", (req, res) => {
   const { callId, lastTimestamp } = req.params;
   const list = callSubtitles.get(callId) || [];
   const ts = parseInt(lastTimestamp) || 0;
 
-  const newSubtitles = list.filter(item => item.timestamp > ts);
+  const newSubtitles = list.filter((item) => item.timestamp > ts);
   res.json({ success: true, subtitles: newSubtitles });
 });
 
 // POST /api/users/avatar - Upload profile avatar slot image to ImageKit using clean email-based filename
-app.post('/api/users/avatar', upload.single('avatar'), async (req, res) => {
+app.post("/api/users/avatar", upload.single("avatar"), async (req, res) => {
   try {
-    const { uid, email = 'unknown', slotIndex = 0 } = req.body;
+    const { uid, email = "unknown", slotIndex = 0 } = req.body;
     if (!uid) {
-      return res.status(400).json({ error: 'uid is required' });
+      return res.status(400).json({ error: "uid is required" });
     }
 
     if (!req.file) {
-      return res.status(400).json({ error: 'No image file uploaded' });
+      return res.status(400).json({ error: "No image file uploaded" });
     }
 
     if (!imagekit) {
-      return res.status(503).json({ error: 'ImageKit is not configured' });
+      return res.status(503).json({ error: "ImageKit is not configured" });
     }
 
     // Clean email to form a clean filename
-    const cleanEmail = email.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const cleanEmail = email.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
     const fileName = `profile_${cleanEmail}_slot_${slotIndex}`;
-    const data = req.file.buffer.toString('base64');
+    const data = req.file.buffer.toString("base64");
 
     // Upload to ImageKit (useUniqueFileName: false ensures overwriting old slots)
     const result = await imagekit.upload({
       file: data,
       fileName,
-      folder: '/UnityApp/profiles',
-      useUniqueFileName: false
+      folder: "/UnityApp/profiles",
+      useUniqueFileName: false,
     });
 
-    console.log(`[ImageKit] Uploaded profile picture: ${fileName} -> ${result.url}`);
+    console.log(
+      `[ImageKit] Uploaded profile picture: ${fileName} -> ${result.url}`,
+    );
     res.json({ success: true, url: result.url });
   } catch (err) {
-    console.error('[ImageKit] Profile upload error:', err.message);
-    res.status(500).json({ error: 'Failed to upload profile picture to ImageKit' });
+    console.error("[ImageKit] Profile upload error:", err.message);
+    res
+      .status(500)
+      .json({ error: "Failed to upload profile picture to ImageKit" });
   }
 });
 
 // DELETE /api/users/:uid - Delete user profile globally on account deletion
-app.delete('/api/users/:uid', async (req, res) => {
+app.delete("/api/users/:uid", async (req, res) => {
   try {
     const { uid } = req.params;
     if (!uid) {
-      return res.status(400).json({ error: 'uid is required' });
+      return res.status(400).json({ error: "uid is required" });
     }
 
     if (useMongo) {
@@ -1768,67 +1970,67 @@ app.delete('/api/users/:uid', async (req, res) => {
     console.log(`[UserProfile] Deleted profile globally for user UID: ${uid}`);
     res.json({ success: true });
   } catch (err) {
-    console.error('[UserProfile] Delete profile error:', err.message);
-    res.status(500).json({ error: 'Failed to delete user profile' });
+    console.error("[UserProfile] Delete profile error:", err.message);
+    res.status(500).json({ error: "Failed to delete user profile" });
   }
 });
 
 // Backup Endpoint (Weekly Sync backup)
-app.post('/api/backup', async (req, res) => {
+app.post("/api/backup", async (req, res) => {
   try {
     const backupData = req.body;
     await fs.writeFile(
-      path.join(__dirname, 'backup_store.json'),
+      path.join(__dirname, "backup_store.json"),
       JSON.stringify(backupData, null, 2),
     );
-    console.log('☁️ Backup successfully stored on server.');
-    res.json({ success: true, message: 'Backup stored successfully' });
+    console.log("☁️ Backup successfully stored on server.");
+    res.json({ success: true, message: "Backup stored successfully" });
   } catch (err) {
-    console.error('Backup error:', err);
-    res.status(500).json({ error: 'Failed to write backup data' });
+    console.error("Backup error:", err);
+    res.status(500).json({ error: "Failed to write backup data" });
   }
 });
 // --- Admin Analytics & Tracking ---
 let adminLogQueue = [];
 let adminClients = [];
 
-app.post('/api/track', (req, res) => {
+app.post("/api/track", (req, res) => {
   try {
     const { event, user, details, platform } = req.body;
-    let derivedPlatform = platform || 'server';
+    let derivedPlatform = platform || "server";
     if (event) {
-      if (event.includes('(web)') || event.toLowerCase().includes('web')) {
-        derivedPlatform = 'web';
+      if (event.includes("(web)") || event.toLowerCase().includes("web")) {
+        derivedPlatform = "web";
       } else {
-        derivedPlatform = 'app';
+        derivedPlatform = "app";
       }
     }
     const logEntry = {
       id: Date.now().toString(),
       timestamp: new Date().toISOString(),
-      event: event || 'unknown',
-      user: user || 'Anonymous',
+      event: event || "unknown",
+      user: user || "Anonymous",
       platform: derivedPlatform,
-      details: details || {}
+      details: details || {},
     };
-    
+
     adminLogQueue.unshift(logEntry);
     if (adminLogQueue.length > 500) {
       adminLogQueue.pop(); // Keep only last 500
     }
 
     // Broadcast to SSE clients
-    adminClients.forEach(client => {
+    adminClients.forEach((client) => {
       client.write(`data: ${JSON.stringify(logEntry)}\n\n`);
     });
 
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to track event' });
+    res.status(500).json({ error: "Failed to track event" });
   }
 });
 
-app.get('/api/admin/stats', async (req, res) => {
+app.get("/api/admin/stats", async (req, res) => {
   try {
     let totalRegistered = 0;
     if (useMongo) {
@@ -1844,7 +2046,8 @@ app.get('/api/admin/stats', async (req, res) => {
         activeSessions.delete(userId);
       }
     }
-    const totalOnline = totalRegistered > 0 ? Math.max(1, activeSessions.size) : 0;
+    const totalOnline =
+      totalRegistered > 0 ? Math.max(1, activeSessions.size) : 0;
 
     let totalLogs = adminLogQueue.length;
     if (useMongo) {
@@ -1858,102 +2061,128 @@ app.get('/api/admin/stats', async (req, res) => {
       totalRegistered,
       totalOnline,
       totalLogs,
-      totalPopups
+      totalPopups,
     });
   } catch (err) {
     let totalRegistered = 0;
     try {
-      totalRegistered = useMongo ? await UserProfile.countDocuments() : memoryUserProfiles.size;
+      totalRegistered = useMongo
+        ? await UserProfile.countDocuments()
+        : memoryUserProfiles.size;
     } catch (_) {}
 
     res.json({
       totalRegistered: totalRegistered || 0,
       totalOnline: activeSessions.size,
       totalLogs: adminLogQueue.length,
-      totalPopups: memoryStore.popups.length
+      totalPopups: memoryStore.popups.length,
     });
   }
 });
 
-app.delete('/api/admin/logs/clear', async (req, res) => {
+app.delete("/api/admin/logs/clear", async (req, res) => {
   try {
     adminLogQueue.length = 0;
     memoryLogs.length = 0;
     if (useMongo) {
       await ActivityLog.deleteMany({});
     }
-    
+
     // Broadcast clear event to all SSE clients
-    adminClients.forEach(client => {
-      client.write(`data: ${JSON.stringify({ type: 'clear' })}\n\n`);
+    adminClients.forEach((client) => {
+      client.write(`data: ${JSON.stringify({ type: "clear" })}\n\n`);
     });
 
-    res.json({ success: true, message: 'Logs cleared successfully' });
+    res.json({ success: true, message: "Logs cleared successfully" });
   } catch (err) {
-    console.error('Failed to clear logs:', err);
-    res.status(500).json({ error: 'Failed to clear logs' });
+    console.error("Failed to clear logs:", err);
+    res.status(500).json({ error: "Failed to clear logs" });
   }
 });
 
-app.get('/api/admin/users', async (req, res) => {
+app.get("/api/admin/users", async (req, res) => {
   try {
     let users = [];
     if (useMongo) {
       users = await UserProfile.find().sort({ createdAt: -1 }).lean();
     } else {
-      users = Array.from(memoryUserProfiles.values()).sort((a, b) => b.createdAt - a.createdAt);
+      users = Array.from(memoryUserProfiles.values()).sort(
+        (a, b) => b.createdAt - a.createdAt,
+      );
     }
-    
-    const formattedUsers = users.map(user => ({
+
+    const formattedUsers = users.map((user) => ({
       uid: user.uid,
       name: user.name,
       avatar: user.avatar,
       flag: user.flag,
       langName: user.langName,
       bio: user.bio,
-      email: user.email || `${user.name.toLowerCase().replace(/[^a-z0-9]/g, '') || user.uid}@example.com`,
-      authMethod: user.authMethod || (user.uid.toLowerCase().includes('google') ? 'google' : (user.uid.toLowerCase().includes('apple') ? 'apple' : 'email')),
+      email:
+        user.email ||
+        `${user.name.toLowerCase().replace(/[^a-z0-9]/g, "") || user.uid}@example.com`,
+      authMethod:
+        user.authMethod ||
+        (user.uid.toLowerCase().includes("google")
+          ? "google"
+          : user.uid.toLowerCase().includes("apple")
+            ? "apple"
+            : "email"),
       location: user.location || flagToCountry(user.flag),
-      appVersion: user.appVersion || '1.0.0',
-      platform: user.platform || 'unknown',
-      createdAt: user.createdAt || user.createdAtDate || user.updatedAt || new Date()
+      appVersion: user.appVersion || "1.0.0",
+      platform: user.platform || "unknown",
+      createdAt:
+        user.createdAt || user.createdAtDate || user.updatedAt || new Date(),
     }));
 
-    res.json({ success: true, count: formattedUsers.length, users: formattedUsers });
+    res.json({
+      success: true,
+      count: formattedUsers.length,
+      users: formattedUsers,
+    });
   } catch (err) {
-    console.error('Failed to fetch admin users:', err);
-    res.status(500).json({ error: 'Failed to fetch user profiles' });
+    console.error("Failed to fetch admin users:", err);
+    res.status(500).json({ error: "Failed to fetch user profiles" });
   }
 });
 
 // DELETE /api/admin/users/:uid - Wipes user and all related records completely
-app.delete('/api/admin/users/:uid', async (req, res) => {
+app.delete("/api/admin/users/:uid", async (req, res) => {
   try {
     const { uid } = req.params;
     if (!uid) {
-      return res.status(400).json({ error: 'User ID is required' });
+      return res.status(400).json({ error: "User ID is required" });
     }
 
     let deletedUser = null;
-    let wipedCounts = { profiles: 0, chatMessages: 0, popupReplies: 0, activityLogs: 0 };
+    let wipedCounts = {
+      profiles: 0,
+      chatMessages: 0,
+      popupReplies: 0,
+      activityLogs: 0,
+    };
 
     if (useMongo) {
-      const profile = await UserProfile.findOne({ $or: [{ uid }, { email: uid }] });
+      const profile = await UserProfile.findOne({
+        $or: [{ uid }, { email: uid }],
+      });
       if (profile) {
         deletedUser = profile;
         const targetEmail = profile.email;
         const targetUid = profile.uid;
 
-        const userRes = await UserProfile.deleteMany({ $or: [{ uid: targetUid }, { email: targetEmail }] });
+        const userRes = await UserProfile.deleteMany({
+          $or: [{ uid: targetUid }, { email: targetEmail }],
+        });
         wipedCounts.profiles = userRes.deletedCount || 0;
 
         const chatRes = await ChatMessage.deleteMany({
-          $or: [{ senderId: targetUid }, { recipientId: targetUid }]
+          $or: [{ senderId: targetUid }, { recipientId: targetUid }],
         });
         wipedCounts.chatMessages = chatRes.deletedCount || 0;
 
         const replyRes = await PopupReply.deleteMany({
-          $or: [{ userId: targetUid }, { email: targetEmail }]
+          $or: [{ userId: targetUid }, { email: targetEmail }],
         });
         wipedCounts.popupReplies = replyRes.deletedCount || 0;
 
@@ -1970,7 +2199,10 @@ app.delete('/api/admin/users/:uid', async (req, res) => {
     }
 
     for (const [key, p] of memoryUserProfiles.entries()) {
-      if (p.uid === uid || (p.email && p.email.toLowerCase() === uid.toLowerCase())) {
+      if (
+        p.uid === uid ||
+        (p.email && p.email.toLowerCase() === uid.toLowerCase())
+      ) {
         deletedUser = deletedUser || p;
         memoryUserProfiles.delete(key);
         wipedCounts.profiles++;
@@ -1987,38 +2219,41 @@ app.delete('/api/admin/users/:uid', async (req, res) => {
       }
     }
 
-    const userName = deletedUser ? (deletedUser.name || deletedUser.email || uid) : uid;
+    const userName = deletedUser
+      ? deletedUser.name || deletedUser.email || uid
+      : uid;
 
     console.log(`[Admin] Permanently wiped user: ${userName} (${uid})`);
 
     res.json({
       success: true,
       message: `User "${userName}" has been completely wiped from the database.`,
-      wiped: wipedCounts
+      wiped: wipedCounts,
     });
   } catch (err) {
-    console.error('Failed to wipe user:', err);
-    res.status(500).json({ error: 'Failed to delete user profile and data' });
+    console.error("Failed to wipe user:", err);
+    res.status(500).json({ error: "Failed to delete user profile and data" });
   }
 });
 
-app.post('/api/admin/notifications', async (req, res) => {
+app.post("/api/admin/notifications", async (req, res) => {
   try {
-    const { type, title, body, icon, senderName, senderAvatar, targetEmail } = req.body;
+    const { type, title, body, icon, senderName, senderAvatar, targetEmail } =
+      req.body;
     if (!type || !body) {
-      return res.status(400).json({ error: 'type and body are required' });
+      return res.status(400).json({ error: "type and body are required" });
     }
 
     const newNotif = {
-      id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      id: "notif_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
       type,
-      title: title || '',
+      title: title || "",
       body,
-      icon: icon || 'default',
-      senderName: senderName || '',
-      senderAvatar: senderAvatar || '',
-      targetEmail: (targetEmail || '').trim().toLowerCase(),
-      createdAt: new Date()
+      icon: icon || "default",
+      senderName: senderName || "",
+      senderAvatar: senderAvatar || "",
+      targetEmail: (targetEmail || "").trim().toLowerCase(),
+      createdAt: new Date(),
     };
 
     if (useMongo) {
@@ -2028,103 +2263,106 @@ app.post('/api/admin/notifications', async (req, res) => {
       if (memoryNotifications.length > 50) memoryNotifications.length = 50;
     }
 
-    const target = newNotif.targetEmail ? `→ ${newNotif.targetEmail}` : '→ all users';
-    console.log(`[Notification] Created campaign: type=${type}, target=${target}, body="${body}"`);
+    const target = newNotif.targetEmail
+      ? `→ ${newNotif.targetEmail}`
+      : "→ all users";
+    console.log(
+      `[Notification] Created campaign: type=${type}, target=${target}, body="${body}"`,
+    );
     res.json({ success: true, notification: newNotif });
   } catch (err) {
-    console.error('Failed to create notification campaign:', err);
-    res.status(500).json({ error: 'Failed to create notification campaign' });
+    console.error("Failed to create notification campaign:", err);
+    res.status(500).json({ error: "Failed to create notification campaign" });
   }
 });
 
-app.get('/api/notifications', async (req, res) => {
+app.get("/api/notifications", async (req, res) => {
   try {
-    const userEmail = (req.query.email || '').trim().toLowerCase();
+    const userEmail = (req.query.email || "").trim().toLowerCase();
     let latest = null;
 
     if (useMongo) {
       // Match broadcast (empty targetEmail) OR targeted to this specific user
       const query = userEmail
-        ? { $or: [{ targetEmail: '' }, { targetEmail: userEmail }] }
-        : { targetEmail: '' };
-      latest = await NotificationModel.findOne(query).sort({ createdAt: -1 }).lean();
+        ? { $or: [{ targetEmail: "" }, { targetEmail: userEmail }] }
+        : { targetEmail: "" };
+      latest = await NotificationModel.findOne(query)
+        .sort({ createdAt: -1 })
+        .lean();
     } else {
       // In-memory: find latest notification that is broadcast or targeted at this user
-      const candidates = memoryNotifications.filter(n =>
-        !n.targetEmail || n.targetEmail === userEmail
+      const candidates = memoryNotifications.filter(
+        (n) => !n.targetEmail || n.targetEmail === userEmail,
       );
       latest = candidates[0] || null;
     }
 
     res.json({ success: true, latest });
   } catch (err) {
-    console.error('Failed to poll latest notification:', err);
-    res.status(500).json({ error: 'Failed to fetch latest notification' });
+    console.error("Failed to poll latest notification:", err);
+    res.status(500).json({ error: "Failed to fetch latest notification" });
   }
 });
 
-
-
-
-app.get('/api/admin/logs/stream', (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
+app.get("/api/admin/logs/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
 
   // Send recent history upon connect
   const history = [...adminLogQueue].reverse(); // send oldest first to newest
-  res.write(`data: ${JSON.stringify({ type: 'history', logs: history })}\n\n`);
+  res.write(`data: ${JSON.stringify({ type: "history", logs: history })}\n\n`);
 
   adminClients.push(res);
 
-  req.on('close', () => {
-    adminClients = adminClients.filter(client => client !== res);
+  req.on("close", () => {
+    adminClients = adminClients.filter((client) => client !== res);
   });
 });
 
 // --- Settings APIs ---
-app.get('/api/settings', async (req, res) => {
+app.get("/api/settings", async (req, res) => {
   try {
     let showDemoPopup = true; // default value
     if (useMongo) {
-      const setting = await Setting.findOne({ key: 'showDemoPopup' });
+      const setting = await Setting.findOne({ key: "showDemoPopup" });
       if (setting) {
-        showDemoPopup = setting.value === true || setting.value === 'true';
+        showDemoPopup = setting.value === true || setting.value === "true";
       }
     } else {
       showDemoPopup = memoryStore.settings.showDemoPopup;
     }
     return res.json({ success: true, showDemoPopup });
   } catch (error) {
-    console.error('Error fetching settings:', error);
-    res.status(500).json({ error: 'Failed to fetch settings' });
+    console.error("Error fetching settings:", error);
+    res.status(500).json({ error: "Failed to fetch settings" });
   }
 });
 
-app.post('/api/admin/settings', async (req, res) => {
+app.post("/api/admin/settings", async (req, res) => {
   try {
     const { showDemoPopup } = req.body;
-    const isShowDemo = showDemoPopup === true || showDemoPopup === 'true';
+    const isShowDemo = showDemoPopup === true || showDemoPopup === "true";
     if (useMongo) {
       await Setting.findOneAndUpdate(
-        { key: 'showDemoPopup' },
+        { key: "showDemoPopup" },
         { value: isShowDemo },
-        { upsert: true, new: true }
+        { upsert: true, new: true },
       );
     } else {
       memoryStore.settings.showDemoPopup = isShowDemo;
     }
     return res.json({ success: true, showDemoPopup: isShowDemo });
   } catch (error) {
-    console.error('Error saving settings:', error);
-    res.status(500).json({ error: 'Failed to save settings' });
+    console.error("Error saving settings:", error);
+    res.status(500).json({ error: "Failed to save settings" });
   }
 });
 
 // --- Popup Advert APIs ---
 
-app.get('/api/admin/popups', async (req, res) => {
+app.get("/api/admin/popups", async (req, res) => {
   try {
     const { appVersion } = req.query;
     let popups = [];
@@ -2132,11 +2370,13 @@ app.get('/api/admin/popups', async (req, res) => {
     if (useMongo) {
       popups = await Popup.find().sort({ createdAt: -1 }).lean();
     } else {
-      popups = memoryStore.popups.slice().sort((a, b) => b.createdAt - a.createdAt);
+      popups = memoryStore.popups
+        .slice()
+        .sort((a, b) => b.createdAt - a.createdAt);
     }
 
     if (appVersion) {
-      popups = popups.filter(p => {
+      popups = popups.filter((p) => {
         if (p.isAppUpdate && p.targetVersion) {
           return p.targetVersion !== appVersion;
         }
@@ -2146,23 +2386,36 @@ app.get('/api/admin/popups', async (req, res) => {
 
     return res.json({ success: true, popups });
   } catch (error) {
-    console.error('Error fetching popups:', error);
-    res.status(500).json({ error: 'Failed to fetch popups' });
+    console.error("Error fetching popups:", error);
+    res.status(500).json({ error: "Failed to fetch popups" });
   }
 });
 
-app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
+app.post("/api/admin/popups", upload.single("image"), async (req, res) => {
   try {
-    const { title, subtopic, text, isImportant, displayStyle, alertButtons, actions, isAppUpdate, targetVersion, isInteractive, submitBtnText, formFields } = req.body;
-    let imageUrl = '';
+    const {
+      title,
+      subtopic,
+      text,
+      isImportant,
+      displayStyle,
+      alertButtons,
+      actions,
+      isAppUpdate,
+      targetVersion,
+      isInteractive,
+      submitBtnText,
+      formFields,
+    } = req.body;
+    let imageUrl = "";
 
     if (req.file && imagekit) {
       const fileName = `popup_${Date.now()}`;
-      const data = req.file.buffer.toString('base64');
+      const data = req.file.buffer.toString("base64");
       const result = await imagekit.upload({
         file: data,
         fileName,
-        folder: '/UnityApp/popups',
+        folder: "/UnityApp/popups",
       });
       imageUrl = result.url;
     }
@@ -2170,12 +2423,16 @@ app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
     // Parse actions from string if it came as form-data
     let parsedActions = [];
     if (actions) {
-      try { parsedActions = JSON.parse(actions); } catch(e) {}
+      try {
+        parsedActions = JSON.parse(actions);
+      } catch (e) {}
     }
 
     let parsedFormFields = [];
     if (formFields) {
-      try { parsedFormFields = JSON.parse(formFields); } catch(e) {}
+      try {
+        parsedFormFields = JSON.parse(formFields);
+      } catch (e) {}
     }
 
     let popupCount = 0;
@@ -2188,7 +2445,9 @@ app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
 
     let parsedAlertButtons = [];
     if (alertButtons) {
-      try { parsedAlertButtons = JSON.parse(alertButtons); } catch(e) {}
+      try {
+        parsedAlertButtons = JSON.parse(alertButtons);
+      } catch (e) {}
     }
 
     const newPopup = {
@@ -2196,17 +2455,17 @@ app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
       title,
       subtopic,
       text,
-      displayStyle: displayStyle === 'alert' ? 'alert' : 'modal',
+      displayStyle: displayStyle === "alert" ? "alert" : "modal",
       alertButtons: parsedAlertButtons,
-      isImportant: isImportant === 'true' || isImportant === true,
-      isAppUpdate: isAppUpdate === 'true' || isAppUpdate === true,
-      targetVersion: targetVersion || '',
-      isInteractive: isInteractive === 'true' || isInteractive === true,
-      submitBtnText: submitBtnText || 'Submit',
+      isImportant: isImportant === "true" || isImportant === true,
+      isAppUpdate: isAppUpdate === "true" || isAppUpdate === true,
+      targetVersion: targetVersion || "",
+      isInteractive: isInteractive === "true" || isInteractive === true,
+      submitBtnText: submitBtnText || "Submit",
       formFields: parsedFormFields,
       actions: parsedActions,
       imageUrl,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     if (useMongo) {
@@ -2217,39 +2476,39 @@ app.post('/api/admin/popups', upload.single('image'), async (req, res) => {
 
     res.json({ success: true, popup: newPopup });
   } catch (error) {
-    console.error('Error creating popup:', error);
-    res.status(500).json({ error: 'Failed to create popup' });
+    console.error("Error creating popup:", error);
+    res.status(500).json({ error: "Failed to create popup" });
   }
 });
 
-app.delete('/api/admin/popups/:id', async (req, res) => {
+app.delete("/api/admin/popups/:id", async (req, res) => {
   try {
     const { id } = req.params;
     if (useMongo) {
       await Popup.findOneAndDelete({ id });
     } else {
-      memoryStore.popups = memoryStore.popups.filter(p => p.id !== id);
+      memoryStore.popups = memoryStore.popups.filter((p) => p.id !== id);
     }
     res.json({ success: true });
   } catch (error) {
-    console.error('Error deleting popup:', error);
-    res.status(500).json({ error: 'Failed to delete popup' });
+    console.error("Error deleting popup:", error);
+    res.status(500).json({ error: "Failed to delete popup" });
   }
 });
 
 // Interactive Popup Replies Endpoints
 
-app.post('/api/popups/:id/reply', async (req, res) => {
+app.post("/api/popups/:id/reply", async (req, res) => {
   try {
     const { id } = req.params;
     const { userName, appVersion, replyData } = req.body;
 
     const replyDoc = {
       popupId: id,
-      userName: userName || 'xayLiteUser',
-      appVersion: appVersion || 'Unknown',
+      userName: userName || "xayLiteUser",
+      appVersion: appVersion || "Unknown",
       replyData: replyData || {},
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     if (useMongo) {
@@ -2260,26 +2519,28 @@ app.post('/api/popups/:id/reply', async (req, res) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error saving reply:', error);
-    res.status(500).json({ error: 'Failed to save reply' });
+    console.error("Error saving reply:", error);
+    res.status(500).json({ error: "Failed to save reply" });
   }
 });
 
-app.get('/api/admin/popups/:id/replies', async (req, res) => {
+app.get("/api/admin/popups/:id/replies", async (req, res) => {
   try {
     const { id } = req.params;
     let replies = [];
 
     if (useMongo) {
-      replies = await PopupReply.find({ popupId: id }).sort({ createdAt: -1 }).lean();
+      replies = await PopupReply.find({ popupId: id })
+        .sort({ createdAt: -1 })
+        .lean();
     } else {
-      replies = memoryStore.popupReplies.filter(r => r.popupId === id);
+      replies = memoryStore.popupReplies.filter((r) => r.popupId === id);
     }
 
     res.json({ success: true, replies });
   } catch (error) {
-    console.error('Error fetching replies:', error);
-    res.status(500).json({ error: 'Failed to fetch replies' });
+    console.error("Error fetching replies:", error);
+    res.status(500).json({ error: "Failed to fetch replies" });
   }
 });
 
@@ -2295,28 +2556,32 @@ function getSafeReadingTime(text) {
 let gnewsLastFetchTimes = {}; // Map of category.toLowerCase() -> timestamp
 const GNEWS_REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const GNEWS_CATEGORIES = [
-  { key: 'technology AI', category: 'AI' },
-  { key: 'android google mobile', category: 'Android' },
-  { key: 'cybersecurity hacking security', category: 'Cybersecurity' },
-  { key: 'gaming video games', category: 'Gaming' },
-  { key: 'kenya nairobi africa', category: 'Kenya' },
-  { key: 'world international global politics', category: 'World' },
-  { key: 'business economy finance', category: 'Business' },
-  { key: 'science space discovery', category: 'Science' },
+  { key: "technology AI", category: "AI" },
+  { key: "android google mobile", category: "Android" },
+  { key: "cybersecurity hacking security", category: "Cybersecurity" },
+  { key: "gaming video games", category: "Gaming" },
+  { key: "kenya nairobi africa", category: "Kenya" },
+  { key: "world international global politics", category: "World" },
+  { key: "business economy finance", category: "Business" },
+  { key: "science space discovery", category: "Science" },
 ];
 
 async function autoRefreshNewsFromGNews(targetCategory = null) {
-  const key = process.env.GNEWS_API_KEY || '';
+  const key = process.env.GNEWS_API_KEY || "";
   if (!key) return; // No key configured — skip silently
   const now = Date.now();
 
   // If no target category is specified, refresh "World" (or choose a random one)
-  const catName = targetCategory && targetCategory.toLowerCase() !== 'all' ? targetCategory : 'World';
+  const catName =
+    targetCategory && targetCategory.toLowerCase() !== "all"
+      ? targetCategory
+      : "World";
   const categoryLower = catName.toLowerCase();
-  
+
   // Find matching GNEWS category config
-  const config = GNEWS_CATEGORIES.find(c => c.category.toLowerCase() === categoryLower) || 
-                 GNEWS_CATEGORIES.find(c => c.category.toLowerCase() === 'world');
+  const config =
+    GNEWS_CATEGORIES.find((c) => c.category.toLowerCase() === categoryLower) ||
+    GNEWS_CATEGORIES.find((c) => c.category.toLowerCase() === "world");
 
   if (!config) return;
 
@@ -2328,51 +2593,71 @@ async function autoRefreshNewsFromGNews(targetCategory = null) {
   }
 
   gnewsLastFetchTimes[config.category.toLowerCase()] = now;
-  console.log(`[News] Auto-refreshing news from GNews for category: "${config.category}"...`);
+  console.log(
+    `[News] Auto-refreshing news from GNews for category: "${config.category}"...`,
+  );
   const allArticles = [];
 
   try {
     const url = `https://gnews.io/api/v4/search?q=${encodeURIComponent(config.key)}&lang=en&max=8&token=${key}`;
     const resp = await axios.get(url, { timeout: 8000 });
     if (resp.status === 403 || resp.status === 429) {
-      console.warn(`[News] GNews rate limit reached for category "${config.category}"`);
+      console.warn(
+        `[News] GNews rate limit reached for category "${config.category}"`,
+      );
       return;
     }
     const articles = resp.data?.articles || [];
     articles.forEach((art, idx) => {
-      const artId = `gnews_${Math.abs((art.title || '').split('').reduce((a, c) => (a << 5) - a + c.charCodeAt(0), 0)).toString(36)}_${idx}`;
-      const publishedDate = art.publishedAt ? new Date(art.publishedAt) : new Date();
+      const artId = `gnews_${Math.abs((art.title || "").split("").reduce((a, c) => (a << 5) - a + c.charCodeAt(0), 0)).toString(36)}_${idx}`;
+      const publishedDate = art.publishedAt
+        ? new Date(art.publishedAt)
+        : new Date();
       const diffHours = Math.floor((Date.now() - publishedDate) / 3600000);
-      let relativeTime = 'Just now';
-      if (diffHours > 24) relativeTime = `${Math.floor(diffHours / 24)} days ago`;
+      let relativeTime = "Just now";
+      if (diffHours > 24)
+        relativeTime = `${Math.floor(diffHours / 24)} days ago`;
       else if (diffHours > 0) relativeTime = `${diffHours} hours ago`;
 
       allArticles.push({
         id: artId,
-        title: art.title || 'News Article',
-        slug: (art.title || artId).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
-        summary: art.description || 'Tap to read the full story.',
-        fullContent: art.content || art.description || 'Full content available at source.',
-        heroImage: art.image || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000&auto=format&fit=crop',
+        title: art.title || "News Article",
+        slug: (art.title || artId)
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, ""),
+        summary: art.description || "Tap to read the full story.",
+        fullContent:
+          art.content || art.description || "Full content available at source.",
+        heroImage:
+          art.image ||
+          "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000&auto=format&fit=crop",
         galleryImages: [],
-        publisher: art.source?.name || 'Global News',
-        publisherAvatar: art.source?.name ? `https://logo.clearbit.com/${art.source.name.toLowerCase().replace(/\s+/g, '')}.com` : '',
+        publisher: art.source?.name || "Global News",
+        publisherAvatar: art.source?.name
+          ? `https://logo.clearbit.com/${art.source.name.toLowerCase().replace(/\s+/g, "")}.com`
+          : "",
         category: config.category,
-        tags: [config.category, art.source?.name || 'News'].filter(Boolean),
+        tags: [config.category, art.source?.name || "News"].filter(Boolean),
         publishedAt: relativeTime,
-        readingTime: getSafeReadingTime(art.content || art.description || ''),
+        readingTime: getSafeReadingTime(art.content || art.description || ""),
         likes: Math.floor(10 + Math.random() * 120),
         views: Math.floor(80 + Math.random() * 900),
         bookmarked: false,
         liked: false,
         featured: idx === 0,
-        breaking: idx === 0 && (config.category === 'AI' || config.category === 'World'),
+        breaking:
+          idx === 0 &&
+          (config.category === "AI" || config.category === "World"),
         trending: idx < 3,
         timestamp: publishedDate.getTime(),
       });
     });
   } catch (err) {
-    console.warn(`[News] GNews fetch failed for category "${config.category}":`, err.message);
+    console.warn(
+      `[News] GNews fetch failed for category "${config.category}":`,
+      err.message,
+    );
   }
 
   if (allArticles.length > 0) {
@@ -2380,86 +2665,142 @@ async function autoRefreshNewsFromGNews(targetCategory = null) {
       if (useMongo) {
         // Upsert by id to avoid duplicates
         for (const art of allArticles) {
-          await News.findOneAndUpdate({ id: art.id }, art, { upsert: true, new: true });
+          await News.findOneAndUpdate({ id: art.id }, art, {
+            upsert: true,
+            new: true,
+          });
         }
         // Prune old GNews articles beyond 150 to keep DB lean
         const count = await News.countDocuments({ id: /^gnews_/ });
         if (count > 150) {
-          const oldest = await News.find({ id: /^gnews_/ }).sort({ timestamp: 1 }).limit(count - 150).select('_id');
-          await News.deleteMany({ _id: { $in: oldest.map(d => d._id) } });
+          const oldest = await News.find({ id: /^gnews_/ })
+            .sort({ timestamp: 1 })
+            .limit(count - 150)
+            .select("_id");
+          await News.deleteMany({ _id: { $in: oldest.map((d) => d._id) } });
         }
       } else {
-        const existingIds = new Set(memoryStore.news.map(a => a.id));
-        const fresh = allArticles.filter(a => !existingIds.has(a.id));
+        const existingIds = new Set(memoryStore.news.map((a) => a.id));
+        const fresh = allArticles.filter((a) => !existingIds.has(a.id));
         memoryStore.news = [...fresh, ...memoryStore.news].slice(0, 200);
       }
-      console.log(`[News] Auto-refreshed ${allArticles.length} articles from GNews for category "${config.category}".`);
+      console.log(
+        `[News] Auto-refreshed ${allArticles.length} articles from GNews for category "${config.category}".`,
+      );
     } catch (err) {
-      console.warn('[News] Failed to save GNews articles:', err.message);
+      console.warn("[News] Failed to save GNews articles:", err.message);
     }
   }
 }
 
-app.get('/api/news', async (req, res) => {
+app.get("/api/news", async (req, res) => {
   try {
     const { category } = req.query;
     // Trigger a non-blocking GNews refresh if data is stale
-    autoRefreshNewsFromGNews(category).catch(e => console.warn('[News] Background refresh error:', e.message));
+    autoRefreshNewsFromGNews(category).catch((e) =>
+      console.warn("[News] Background refresh error:", e.message),
+    );
     let list = [];
     if (useMongo) {
-      const query = category && category.toLowerCase() !== 'all'
-        ? { category: { $regex: new RegExp(`^${category}$`, 'i') } }
-        : {};
+      const query =
+        category && category.toLowerCase() !== "all"
+          ? { category: { $regex: new RegExp(`^${category}$`, "i") } }
+          : {};
       list = await News.find(query).sort({ timestamp: -1 }).limit(80).lean();
     } else {
       list = memoryStore.news;
-      if (category && category.toLowerCase() !== 'all') {
-        list = list.filter(a => a.category?.toLowerCase() === category.toLowerCase());
+      if (category && category.toLowerCase() !== "all") {
+        list = list.filter(
+          (a) => a.category?.toLowerCase() === category.toLowerCase(),
+        );
       }
     }
 
     // Pre-populate with mock data if nothing exists yet
-    if (list.length === 0 && (!category || category.toLowerCase() === 'all')) {
+    if (list.length === 0 && (!category || category.toLowerCase() === "all")) {
       const initialMock = [
         {
           id: "news_ai_001",
-          title: "OpenAI Announces GPT-5 with Human-Level Multi-Modal Reasoning",
+          title:
+            "OpenAI Announces GPT-5 with Human-Level Multi-Modal Reasoning",
           slug: "openai-gpt-5-announcement",
-          summary: "OpenAI has officially unveiled GPT-5, promising unprecedented capabilities in complex planning, mathematics, and live video understanding.",
-          fullContent: "OpenAI has officially announced GPT-5, the latest iteration of its flagship generative pre-trained transformer. The model exhibits advanced reasoning capabilities matching human-level experts on standardized benchmarks.",
-          heroImage: "https://images.unsplash.com/photo-1677442136019-21780efad99a?q=80&w=1000&auto=format&fit=crop",
-          publisher: "TechCrunch", publisherAvatar: "https://logo.clearbit.com/techcrunch.com",
-          category: "AI", tags: ["OpenAI", "GPT-5", "AI"], publishedAt: "2 hours ago",
-          readingTime: "3 min read", likes: 342, views: 1250, bookmarked: false, liked: false,
-          featured: true, breaking: true, trending: true, timestamp: Date.now() - 7200000,
+          summary:
+            "OpenAI has officially unveiled GPT-5, promising unprecedented capabilities in complex planning, mathematics, and live video understanding.",
+          fullContent:
+            "OpenAI has officially announced GPT-5, the latest iteration of its flagship generative pre-trained transformer. The model exhibits advanced reasoning capabilities matching human-level experts on standardized benchmarks.",
+          heroImage:
+            "https://images.unsplash.com/photo-1677442136019-21780efad99a?q=80&w=1000&auto=format&fit=crop",
+          publisher: "TechCrunch",
+          publisherAvatar: "https://logo.clearbit.com/techcrunch.com",
+          category: "AI",
+          tags: ["OpenAI", "GPT-5", "AI"],
+          publishedAt: "2 hours ago",
+          readingTime: "3 min read",
+          likes: 342,
+          views: 1250,
+          bookmarked: false,
+          liked: false,
+          featured: true,
+          breaking: true,
+          trending: true,
+          timestamp: Date.now() - 7200000,
         },
         {
           id: "news_android_002",
           title: "Google Pixel 10 Leaks: Custom Tensor G5 Processor by TSMC",
           slug: "google-pixel-10-tensor-g5-tsmc",
-          summary: "A leaked blueprint reveals that Google's Pixel 10 will feature a fully custom Tensor G5 chip by TSMC on a 3nm node.",
-          fullContent: "Google is shifting entirely to TSMC for the Tensor G5 processor debuting in the Pixel 10 and Pixel 10 Pro, bringing major improvements in thermal efficiency and battery life.",
-          heroImage: "https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=1000&auto=format&fit=crop",
-          publisher: "The Verge", publisherAvatar: "https://logo.clearbit.com/theverge.com",
-          category: "Android", tags: ["Google", "Pixel 10", "Android"], publishedAt: "4 hours ago",
-          readingTime: "4 min read", likes: 198, views: 890, bookmarked: false, liked: false,
-          featured: false, breaking: false, trending: true, timestamp: Date.now() - 14400000,
+          summary:
+            "A leaked blueprint reveals that Google's Pixel 10 will feature a fully custom Tensor G5 chip by TSMC on a 3nm node.",
+          fullContent:
+            "Google is shifting entirely to TSMC for the Tensor G5 processor debuting in the Pixel 10 and Pixel 10 Pro, bringing major improvements in thermal efficiency and battery life.",
+          heroImage:
+            "https://images.unsplash.com/photo-1598327105666-5b89351aff97?q=80&w=1000&auto=format&fit=crop",
+          publisher: "The Verge",
+          publisherAvatar: "https://logo.clearbit.com/theverge.com",
+          category: "Android",
+          tags: ["Google", "Pixel 10", "Android"],
+          publishedAt: "4 hours ago",
+          readingTime: "4 min read",
+          likes: 198,
+          views: 890,
+          bookmarked: false,
+          liked: false,
+          featured: false,
+          breaking: false,
+          trending: true,
+          timestamp: Date.now() - 14400000,
         },
         {
           id: "news_kenya_003",
-          title: "Silicon Savannah: Nairobi Tech Hub Secures $450M in Venture Capital",
+          title:
+            "Silicon Savannah: Nairobi Tech Hub Secures $450M in Venture Capital",
           slug: "nairobi-tech-hub-secures-funding",
-          summary: "Kenya's tech sector is booming, securing $450M in foreign direct investment for climate-tech and fintech startups in East Africa.",
-          fullContent: "Nairobi's bustling tech ecosystem, widely known as the Silicon Savannah, has reached a new funding peak this quarter with $450 million raised by regional startups.",
-          heroImage: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=1000&auto=format&fit=crop",
-          publisher: "Nairobi Tech Review", publisherAvatar: "https://logo.clearbit.com/nation.africa",
-          category: "Kenya", tags: ["Kenya", "Nairobi", "FinTech"], publishedAt: "8 hours ago",
-          readingTime: "5 min read", likes: 276, views: 1100, bookmarked: false, liked: false,
-          featured: false, breaking: false, trending: true, timestamp: Date.now() - 28800000,
-        }
+          summary:
+            "Kenya's tech sector is booming, securing $450M in foreign direct investment for climate-tech and fintech startups in East Africa.",
+          fullContent:
+            "Nairobi's bustling tech ecosystem, widely known as the Silicon Savannah, has reached a new funding peak this quarter with $450 million raised by regional startups.",
+          heroImage:
+            "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=1000&auto=format&fit=crop",
+          publisher: "Nairobi Tech Review",
+          publisherAvatar: "https://logo.clearbit.com/nation.africa",
+          category: "Kenya",
+          tags: ["Kenya", "Nairobi", "FinTech"],
+          publishedAt: "8 hours ago",
+          readingTime: "5 min read",
+          likes: 276,
+          views: 1100,
+          bookmarked: false,
+          liked: false,
+          featured: false,
+          breaking: false,
+          trending: true,
+          timestamp: Date.now() - 28800000,
+        },
       ];
       if (useMongo) {
-        await News.insertMany(initialMock.map(a => ({ ...a, _id: undefined }))).catch(() => {});
+        await News.insertMany(
+          initialMock.map((a) => ({ ...a, _id: undefined })),
+        ).catch(() => {});
         list = await News.find({}).sort({ timestamp: -1 }).limit(80).lean();
       } else {
         memoryStore.news = initialMock;
@@ -2469,57 +2810,69 @@ app.get('/api/news', async (req, res) => {
 
     res.json({ success: true, news: list });
   } catch (error) {
-    console.error('Error fetching news:', error);
-    res.status(500).json({ error: 'Failed to fetch news' });
+    console.error("Error fetching news:", error);
+    res.status(500).json({ error: "Failed to fetch news" });
   }
 });
 
-app.post('/api/news', async (req, res) => {
+app.post("/api/news", async (req, res) => {
   try {
     const {
       title,
       summary,
       fullContent,
       heroImage,
-      publisher = 'Admin XayLite',
-      publisherAvatar = '',
-      category = 'Technology',
+      publisher = "Admin XayLite",
+      publisherAvatar = "",
+      category = "Technology",
       tags = [],
       readingTime,
       featured = false,
       breaking = false,
-      trending = false
+      trending = false,
     } = req.body;
 
     if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
+      return res.status(400).json({ error: "Title is required" });
     }
 
-    const calculatedReadingTime = readingTime || getSafeReadingTime(fullContent || summary || '');
-    const cleanTags = Array.isArray(tags) ? tags : String(tags).split(',').map(t => t.trim()).filter(Boolean);
+    const calculatedReadingTime =
+      readingTime || getSafeReadingTime(fullContent || summary || "");
+    const cleanTags = Array.isArray(tags)
+      ? tags
+      : String(tags)
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
     const id = `news_manual_${Date.now()}`;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || `news-${id}`;
+    const slug =
+      title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "") || `news-${id}`;
 
     const newArticle = {
       id,
       title,
       slug,
-      summary: summary || 'No summary available.',
-      fullContent: fullContent || summary || 'No content details.',
-      heroImage: heroImage || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000',
+      summary: summary || "No summary available.",
+      fullContent: fullContent || summary || "No content details.",
+      heroImage:
+        heroImage ||
+        "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000",
       galleryImages: [],
       publisher,
       publisherAvatar,
       category,
       tags: cleanTags,
-      publishedAt: 'Just now',
+      publishedAt: "Just now",
       readingTime: calculatedReadingTime,
       likes: 0,
       views: 0,
-      featured: featured === true || featured === 'true',
-      breaking: breaking === true || breaking === 'true',
-      trending: trending === true || trending === 'true',
-      timestamp: Date.now()
+      featured: featured === true || featured === "true",
+      breaking: breaking === true || breaking === "true",
+      trending: trending === true || trending === "true",
+      timestamp: Date.now(),
     };
 
     if (useMongo) {
@@ -2530,31 +2883,35 @@ app.post('/api/news', async (req, res) => {
 
     res.json({ success: true, article: newArticle });
   } catch (error) {
-    console.error('Error uploading news:', error);
-    res.status(500).json({ error: 'Failed to upload news' });
+    console.error("Error uploading news:", error);
+    res.status(500).json({ error: "Failed to upload news" });
   }
 });
 
-app.delete('/api/news/:id', async (req, res) => {
+app.delete("/api/news/:id", async (req, res) => {
   try {
     const { id } = req.params;
     if (useMongo) {
       await News.findOneAndDelete({ id });
     } else {
-      memoryStore.news = memoryStore.news.filter(art => art.id !== id);
+      memoryStore.news = memoryStore.news.filter((art) => art.id !== id);
     }
     res.json({ success: true });
   } catch (error) {
-    console.error('Error deleting news:', error);
-    res.status(500).json({ error: 'Failed to delete news' });
+    console.error("Error deleting news:", error);
+    res.status(500).json({ error: "Failed to delete news" });
   }
 });
 
-app.get('/api/admin/news/stats', async (req, res) => {
+app.get("/api/admin/news/stats", async (req, res) => {
   try {
-    let stats = { lastFetchTime: null, lastFetchCount: 0, lastFetchProvider: '' };
+    let stats = {
+      lastFetchTime: null,
+      lastFetchCount: 0,
+      lastFetchProvider: "",
+    };
     if (useMongo) {
-      const setting = await Setting.findOne({ key: 'news_stats' });
+      const setting = await Setting.findOne({ key: "news_stats" });
       if (setting && setting.value) {
         stats = setting.value;
       }
@@ -2563,67 +2920,81 @@ app.get('/api/admin/news/stats', async (req, res) => {
     }
     res.json({ success: true, stats });
   } catch (error) {
-    console.error('Error fetching news stats:', error);
-    res.status(500).json({ error: 'Failed to fetch news stats' });
+    console.error("Error fetching news stats:", error);
+    res.status(500).json({ error: "Failed to fetch news stats" });
   }
 });
 
-app.post('/api/admin/news/fetch', async (req, res) => {
+app.post("/api/admin/news/fetch", async (req, res) => {
   try {
-    const { provider = 'gnews', apiKey } = req.body;
+    const { provider = "gnews", apiKey } = req.body;
     let fetchedArticles = [];
-    let providerName = 'Curated XayLite Feed';
+    let providerName = "Curated XayLite Feed";
 
-    if (provider === 'gnews') {
-      providerName = 'GNews API';
-      const key = apiKey || process.env.GNEWS_API_KEY || '';
+    if (provider === "gnews") {
+      providerName = "GNews API";
+      const key = apiKey || process.env.GNEWS_API_KEY || "";
       if (!key) {
-        return res.status(400).json({ error: 'GNews API Key is missing. Provide it in dashboard settings.' });
+        return res.status(400).json({
+          error: "GNews API Key is missing. Provide it in dashboard settings.",
+        });
       }
 
       // Fetch AI/Technology news from GNews
       const url = `https://gnews.io/api/v4/search?q=technology%20AI&lang=en&token=${key}`;
       const response = await axios.get(url);
       if (response.status === 403 || response.status === 429) {
-        return res.status(403).json({ error: 'GNews API rate limit reached.' });
+        return res.status(403).json({ error: "GNews API rate limit reached." });
       }
-      
+
       const articles = response.data.articles || [];
       fetchedArticles = articles.map((art, idx) => {
         const artId = `gnews_${Math.abs(idx + Date.now()).toString(36)}`;
         return {
           id: artId,
           title: art.title || "API News Article",
-          slug: art.title ? art.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : `news-${artId}`,
+          slug: art.title
+            ? art.title
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/(^-|-$)/g, "")
+            : `news-${artId}`,
           summary: art.description || "No description available.",
           fullContent: art.content || art.description || "No content details.",
-          heroImage: art.image || "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000",
+          heroImage:
+            art.image ||
+            "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1000",
           galleryImages: [],
           publisher: art.source?.name || "Global News",
-          publisherAvatar: art.source?.name ? `https://logo.clearbit.com/${art.source.name.toLowerCase().replace(/\s+/g, '')}.com` : '',
+          publisherAvatar: art.source?.name
+            ? `https://logo.clearbit.com/${art.source.name.toLowerCase().replace(/\s+/g, "")}.com`
+            : "",
           category: "Technology",
           tags: ["GNews", "Tech"],
           publishedAt: "Just now",
-          readingTime: getSafeReadingTime(art.content || art.description || ''),
+          readingTime: getSafeReadingTime(art.content || art.description || ""),
           likes: Math.floor(10 + Math.random() * 50),
           views: Math.floor(100 + Math.random() * 500),
           featured: idx === 0,
           breaking: idx === 0,
           trending: idx < 3,
-          timestamp: Date.now() - idx * 3600000
+          timestamp: Date.now() - idx * 3600000,
         };
       });
     } else {
       // Curated mock provider fallback
-      providerName = 'Curated XayLite Feed';
+      providerName = "Curated XayLite Feed";
       fetchedArticles = [
         {
           id: `mock_${Date.now()}_1`,
           title: "Silicon Savannah Leads African Tech Growth",
           slug: "silicon-savannah-african-tech-growth",
-          summary: "Nairobi's tech hub secures significant venture capital in the latest quarter, boosting local innovators.",
-          fullContent: "Nairobi's tech ecosystem, known as the 'Silicon Savannah', continues its rapid expansion. Startups successfully raised a cumulative $450 million this quarter, targeting micro-finance, climate tech, and mobile money enhancements.\n\nWith new funding rounds closed, Nairobi now ranks as the highest funded tech ecosystem in sub-Saharan Africa, attracting local developers and engineering talent.",
-          heroImage: "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=1000",
+          summary:
+            "Nairobi's tech hub secures significant venture capital in the latest quarter, boosting local innovators.",
+          fullContent:
+            "Nairobi's tech ecosystem, known as the 'Silicon Savannah', continues its rapid expansion. Startups successfully raised a cumulative $450 million this quarter, targeting micro-finance, climate tech, and mobile money enhancements.\n\nWith new funding rounds closed, Nairobi now ranks as the highest funded tech ecosystem in sub-Saharan Africa, attracting local developers and engineering talent.",
+          heroImage:
+            "https://images.unsplash.com/photo-1547471080-7cc2caa01a7e?q=80&w=1000",
           publisher: "Nairobi Tech Review",
           publisherAvatar: "https://logo.clearbit.com/nation.africa",
           category: "Kenya",
@@ -2635,15 +3006,18 @@ app.post('/api/admin/news/fetch', async (req, res) => {
           featured: true,
           breaking: false,
           trending: true,
-          timestamp: Date.now() - 3600000
+          timestamp: Date.now() - 3600000,
         },
         {
           id: `mock_${Date.now()}_2`,
           title: "Global Semiconductor Mega-Fab Debuts in Europe",
           slug: "semiconductor-mega-fab-europe",
-          summary: "A consortium of top global chipmakers has finalized a deal to build a massive $50 billion semiconductor fabrication plant in Munich.",
-          fullContent: "In an effort to secure technology supply lines against potential geopolitical friction, a global semiconductor consortium has agreed to build a state-of-the-art mega-fab facility in Munich, Germany. The project is backed by a combination of public grants and corporate investments totaling $50 billion.",
-          heroImage: "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000",
+          summary:
+            "A consortium of top global chipmakers has finalized a deal to build a massive $50 billion semiconductor fabrication plant in Munich.",
+          fullContent:
+            "In an effort to secure technology supply lines against potential geopolitical friction, a global semiconductor consortium has agreed to build a state-of-the-art mega-fab facility in Munich, Germany. The project is backed by a combination of public grants and corporate investments totaling $50 billion.",
+          heroImage:
+            "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1000",
           publisher: "BBC News",
           publisherAvatar: "https://logo.clearbit.com/bbc.com",
           category: "World",
@@ -2655,15 +3029,18 @@ app.post('/api/admin/news/fetch', async (req, res) => {
           featured: false,
           breaking: true,
           trending: true,
-          timestamp: Date.now() - 10800000
+          timestamp: Date.now() - 10800000,
         },
         {
           id: `mock_${Date.now()}_3`,
           title: "AI Safety Treaty Signed by 40 Nations",
           slug: "ai-safety-treaty-signed",
-          summary: "A coalition of international powers adopts strict benchmarks and compliance safety rules for frontier artificial intelligence models.",
-          fullContent: "Major technology developers and global governments signed a collaborative treaty this week establishing the first unified framework for pre-deployment safety evaluation of super-intelligent systems. The framework addresses algorithmic alignment and computational resource ceilings.",
-          heroImage: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1000",
+          summary:
+            "A coalition of international powers adopts strict benchmarks and compliance safety rules for frontier artificial intelligence models.",
+          fullContent:
+            "Major technology developers and global governments signed a collaborative treaty this week establishing the first unified framework for pre-deployment safety evaluation of super-intelligent systems. The framework addresses algorithmic alignment and computational resource ceilings.",
+          heroImage:
+            "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=1000",
           publisher: "TechCrunch",
           publisherAvatar: "https://logo.clearbit.com/techcrunch.com",
           category: "AI",
@@ -2675,8 +3052,8 @@ app.post('/api/admin/news/fetch', async (req, res) => {
           featured: false,
           breaking: false,
           trending: true,
-          timestamp: Date.now() - 18000000
-        }
+          timestamp: Date.now() - 18000000,
+        },
       ];
     }
 
@@ -2690,7 +3067,9 @@ app.post('/api/admin/news/fetch', async (req, res) => {
           savedCount++;
         }
       } else {
-        const exists = memoryStore.news.some(item => item.title === art.title);
+        const exists = memoryStore.news.some(
+          (item) => item.title === art.title,
+        );
         if (!exists) {
           memoryStore.news.unshift(art);
           savedCount++;
@@ -2702,23 +3081,30 @@ app.post('/api/admin/news/fetch', async (req, res) => {
     const statsPayload = {
       lastFetchTime: new Date().toLocaleString(),
       lastFetchCount: savedCount,
-      lastFetchProvider: providerName
+      lastFetchProvider: providerName,
     };
 
     if (useMongo) {
       await Setting.findOneAndUpdate(
-        { key: 'news_stats' },
+        { key: "news_stats" },
         { value: statsPayload },
-        { upsert: true, new: true }
+        { upsert: true, new: true },
       );
     } else {
       memoryStore.newsStats = statsPayload;
     }
 
-    res.json({ success: true, stats: statsPayload, fetched: fetchedArticles.length, saved: savedCount });
+    res.json({
+      success: true,
+      stats: statsPayload,
+      fetched: fetchedArticles.length,
+      saved: savedCount,
+    });
   } catch (error) {
-    console.error('Error fetching API news:', error);
-    res.status(500).json({ error: error.message || 'Failed to fetch API news' });
+    console.error("Error fetching API news:", error);
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to fetch API news" });
   }
 });
 
@@ -2727,21 +3113,21 @@ app.post('/api/admin/news/fetch', async (req, res) => {
    ============================================================ */
 
 // POST /api/logs — receive a client-side activity log entry
-app.post('/api/logs', async (req, res) => {
+app.post("/api/logs", async (req, res) => {
   try {
     const {
       event,
-      method = '',
-      userLabel = 'guest',
-      email = '',
-      platform = '',
-      appVersion = '',
-      error = '',
+      method = "",
+      userLabel = "guest",
+      email = "",
+      platform = "",
+      appVersion = "",
+      error = "",
       meta = {},
     } = req.body;
 
     if (!event) {
-      return res.status(400).json({ error: 'event is required' });
+      return res.status(400).json({ error: "event is required" });
     }
 
     const entry = {
@@ -2764,19 +3150,19 @@ app.post('/api/logs', async (req, res) => {
     }
 
     // Auto-enrich corresponding UserProfile with client log details on login_success
-    if (event === 'login_success' && email) {
+    if (event === "login_success" && email) {
       const updates = {
         email,
-        authMethod: method || 'email',
+        authMethod: method || "email",
         appVersion,
-        platform
+        platform,
       };
       try {
         if (useMongo) {
           await UserProfile.findOneAndUpdate(
             { email: email },
             { $set: updates },
-            { new: true }
+            { new: true },
           );
         } else {
           for (const [uid, profile] of memoryUserProfiles.entries()) {
@@ -2787,44 +3173,49 @@ app.post('/api/logs', async (req, res) => {
           }
         }
       } catch (err) {
-        console.warn('[ActivityLog] Failed to auto-enrich user profile:', err.message);
+        console.warn(
+          "[ActivityLog] Failed to auto-enrich user profile:",
+          err.message,
+        );
       }
     }
 
-    console.log(`[ActivityLog] ${entry.createdAt.toISOString()} | ${event} | ${userLabel} | ${platform} | ${error || 'ok'}`);
-    
+    console.log(
+      `[ActivityLog] ${entry.createdAt.toISOString()} | ${event} | ${userLabel} | ${platform} | ${error || "ok"}`,
+    );
+
     // Broadcast to SSE clients and update live queue
     const sseEntry = {
-      id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 4),
+      id: Date.now().toString() + "_" + Math.random().toString(36).substr(2, 4),
       timestamp: entry.createdAt.toISOString(),
-      event: entry.event || 'unknown',
-      user: entry.userLabel || 'guest',
-      platform: entry.platform || 'web',
+      event: entry.event || "unknown",
+      user: entry.userLabel || "guest",
+      platform: entry.platform || "web",
       details: {
         method: entry.method,
         email: entry.email,
         appVersion: entry.appVersion,
         error: entry.error,
-        meta: entry.meta
-      }
+        meta: entry.meta,
+      },
     };
     adminLogQueue.unshift(sseEntry);
     if (adminLogQueue.length > 500) {
       adminLogQueue.pop();
     }
-    adminClients.forEach(client => {
+    adminClients.forEach((client) => {
       client.write(`data: ${JSON.stringify(sseEntry)}\n\n`);
     });
 
     res.json({ success: true });
   } catch (err) {
-    console.error('[ActivityLog] Failed to save log:', err.message);
-    res.status(500).json({ error: 'Failed to save log' });
+    console.error("[ActivityLog] Failed to save log:", err.message);
+    res.status(500).json({ error: "Failed to save log" });
   }
 });
 
 // GET /api/logs — retrieve recent logs (for admin/debugging)
-app.get('/api/logs', async (req, res) => {
+app.get("/api/logs", async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 100, 500);
     const event = req.query.event || null;
@@ -2832,25 +3223,28 @@ app.get('/api/logs', async (req, res) => {
     let logs;
     if (useMongo) {
       const query = event ? { event } : {};
-      logs = await ActivityLog.find(query).sort({ createdAt: -1 }).limit(limit).lean();
+      logs = await ActivityLog.find(query)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean();
     } else {
       logs = event
-        ? memoryLogs.filter(l => l.event === event).slice(0, limit)
+        ? memoryLogs.filter((l) => l.event === event).slice(0, limit)
         : memoryLogs.slice(0, limit);
     }
 
     res.json({ success: true, count: logs.length, logs });
   } catch (err) {
-    console.error('[ActivityLog] Failed to fetch logs:', err.message);
-    res.status(500).json({ error: 'Failed to fetch logs' });
+    console.error("[ActivityLog] Failed to fetch logs:", err.message);
+    res.status(500).json({ error: "Failed to fetch logs" });
   }
 });
 
 // Serve admin dashboard
-app.get('/admin', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html'));
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin", "index.html"));
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Amani AI server running on http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
