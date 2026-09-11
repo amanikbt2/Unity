@@ -108,6 +108,10 @@ app.get(["/privacy-policy", "/privacy-policy.html"], (req, res) => {
   res.sendFile(path.join(__dirname, "public", "privacy-policy.html"));
 });
 
+app.get(["/delete-account", "/delete-account.html"], (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "delete-account.html"));
+});
+
 const activeSessions = new Map();
 
 // Middleware to track active client sessions for the currently online counter
