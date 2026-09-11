@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #mainCont {
+        background-color: rgb(230, 226, 226);
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      #sky {
+        background-image: url("exfolder/image.png");
+        width: 100%;
+        height: 80%;
+      }
+      #ground {
+        background: linear-gradient(
+          45deg,
+          rgb(199, 76, 76),
+          rgb(204, 85, 85),
+          rgb(150, 56, 56)
+        );
+        width: 100%;
+        height: 20%;
+        z-index: 10;
+      }
+      .obstac {
+        background-color: red;
+        width: 40px;
+        height: 40px;
+        position: absolute;
+        top: 74%;
+        animation: move 30s ease forwards;
+        z-index: 11;
+      }
+      @keyframes move {
+        0% {
+          transform: translateX(0%);
+        }
+        100% {
+          transform: translateX(-2000%);
+        }
+      }
+
+      #boy {
+        background-size: cover;
+        width: 100px;
+        height: 100px;
+        position: absolute;
+        top: 67%;
+        left: 35%;
+        animation: rotate 0.6s ease-in-out infinite forwards;
+        z-index: 12;
+        transition: all 0.4s ease-in-out;
+      }
+      @keyframes rotate {
+        0% {
+          background-image: url("exfolder/br1.png");
+        }
+        25% {
+          background-image: url("exfolder/br2.png");
+        }
+        50% {
+          background-image: url("exfolder/br1.png");
+        }
+        75% {
+          background-image: url("exfolder/br2.png");
+        }
+        100% {
+          background-image: url("exfolder/br2.png");
+        }
+      }
+      .clouds {
+        width: 20px;
+        height: 10px;
+        position: absolute;
+        background-image: url("exfolder/image.png");
+        background-size: cover;
+      }
+      .cloudcont {
+        width: 30px;
+        height: 20px;
+        position: absolute;
+        top: 40px;
+        left: 30px;
+        animation: clmove 60s ease forwards;
+      }
+      @keyframes clmove {
+        0% {
+          transform: translateX(0%);
+        }
+        100% {
+          transform: translateX(-2000%);
+        }
+      }
+      .mountain {
+        width: 100px;
+        height: 150px;
+        position: absolute;
+        background-image: url("/public/exfolder/mountain.png");
+        background-size: cover;
+        position: absolute;
+        opacity: 0.3;
+      }
+      .mountcont {
+        width: 100px;
+        height: 150px;
+        position: absolute;
+        position: absolute;
+        top: 70%;
+        left: 30px;
+        animation: clmove 80s ease forwards;
+      }
+      @keyframes mtmove {
+        0% {
+          transform: translateX(0%);
+        }
+        100% {
+          transform: translateX(-2000%);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="mainCont">
+      <div id="sky"></div>
+      <div class="cloudcont">
+        <div class="clouds"></div>
+      </div>
+      <div class="mountcont">
+        <div class="mountain"></div>
+      </div>
+      <div class="boy" id="boy"></div>
+      <div id="ground"></div>
+    </div>
+  </body>
+  <script>
+    let ground = document.getElementById("ground");
+    let obs = document.getElementById("obs");
+    let sky = document.getElementById("sky");
+
+    let colors = {
+      cblue:
+        "background:linear-gradient(30deg,rgb(67,61,151),rgb(37,29,151),rgb(97,20,107))",
+      cyellow:
+        "background:linear-gradient(30deg,rgb(236,221,82),rgb(162,209,74),rgb(219,231,106))",
+      cred: "background:linear-gradient(30deg,red,rgb(248,40,40),rgb(153,52,52))",
+      cgreen:
+        "background:linear-gradient(30deg,green,rgb(101,212,101),rgb(115,170,115))",
+    };
+
+    let look = {
+      l1: "border-top-left-radius: 100px",
+      l2: "border-top-right-radius:100px",
+      l3: "border-top-left-radius:100px;border-top-right-radius:100px",
+      l4: "border-top-left-radius:100px;border-top-right-radius:100px;border-bottom-right-radius:100px",
+      l5: "border-top-left-radius:100px;border-top-right-radius:100px;border-bottom-left-radius:100px",
+    };
+
+    let colray = ["cblue", "cyellow", "cred", "cgreen"];
+    let lray = ["l1", "l2", "l3", "l4", "l5"];
+    let oid = 0;
+    function genobj() {
+      oid++;
+      let rndcol = colray[Math.floor(Math.random() * colray.length)];
+      let rndl = lray[Math.floor(Math.random() * lray.length)];
+      let rndstart = Math.floor(Math.random() * (150 - 100 + 1) + 100);
+
+      let stl = `${colors[rndcol]}` + ";" + `${look[rndl]}`;
+
+      let obj = document.createElement("div");
+      obj.classList.add("obstac");
+      obj.id = `oid${oid}`;
+      obj.style = stl;
+      obj.style.left = rndstart + "%";
+      sky.appendChild(obj);
+    }
+
+    function genclouds() {
+      let rndscale = Math.floor(Math.random() * 14);
+      let rndtop = Math.floor(Math.random() * 50);
+      let rndleft = Math.floor(Math.random() * 110);
+
+      let cl = document.createElement("div");
+      let clc = document.createElement("div");
+      clc.classList.add("cloudcont");
+      cl.classList.add("clouds");
+      clc.style.left = "110%";
+      clc.style.top = rndtop + "%";
+      cl.style.transform = `scale(${rndscale})`;
+      sky.appendChild(clc);
+      clc.appendChild(cl);
+    }
+
+    function genmt() {
+      let rndleft = Math.floor(Math.random() * 110);
+      let rndtop = Math.floor(Math.random() * (20 - -20 + 1) + 20);
+      let rndwidth = Math.floor(Math.random() * 50);
+      let rndstart = Math.floor(Math.random() * (150 - 100 + 1) + 100);
+
+      let mt = document.createElement("div");
+      let mtc = document.createElement("div");
+      mtc.classList.add("mountcont");
+      mt.classList.add("mountain");
+      mtc.style.left = rndstart + "%";
+      mt.style.transform = `translateY(${-rndtop}px)`;
+      mt.style.width = 140 + rndwidth + "px";
+      sky.appendChild(mtc);
+      mtc.appendChild(mt);
+    }
+
+    setInterval(() => {
+      genmt();
+    }, 5000);
+    setInterval(() => {
+      genclouds();
+    }, 5000);
+    setInterval(() => {
+      genobj();
+    }, 3000);
+
+    let boy = document.getElementById("boy");
+    let xboy = 35;
+    jumped = false;
+    document.addEventListener("keyup", (e) => {
+      if (e.key == "ArrowUp") {
+        jumped = true;
+        xboy += 20;
+        boy.style.transform = `translateY(-100px) translateX(${xboy}%)`;
+        setTimeout(() => {
+          xboy += 20;
+          boy.style.transform = `translateY(0px) translateX(${xboy}%)`;
+          setTimeout(() => {
+            jumped = false;
+          }, 400);
+        }, 400);
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key == "ArrowRight") {
+        xboy += 14;
+        boy.style.transform = `translateX(${xboy}%)`;
+        boy.style.transition = "translateX 1s";
+        setInterval(() => {
+          boy.style.transition = "all 0.4s ease-in-out";
+        }, 10);
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key == "ArrowLeft") {
+        xboy -= 14;
+        boy.style.transform = `translateX(${xboy}%)`;
+        boy.style.transition = "translateX 1s";
+        setInterval(() => {
+          boy.style.transition = "all 0.4s ease-in-out";
+        }, 10);
+      }
+    });
+
+    function checkmeet() {
+      let objs = document.getElementsByClassName("obstac");
+      let objcs = [...objs];
+      objcs.forEach((ob) => {
+        if (
+          ob.getBoundingClientRect().left == boy.getBoundingClientRect().left ||
+          (ob.getBoundingClientRect().left - boy.getBoundingClientRect().left <
+            60 &&
+            ob.getBoundingClientRect().left - boy.getBoundingClientRect().left >
+              0)
+        ) {
+          if (!jumped) {
+            ob.style.display = "none";
+          }
+        }
+        console.log(
+          ob.getBoundingClientRect().left - boy.getBoundingClientRect().left,
+        );
+      });
+    }
+    setInterval(() => {
+      checkmeet();
+    }, 200);
+  </script>
+</html>

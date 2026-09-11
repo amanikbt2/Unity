@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body {
+        background-color: rgb(189, 173, 143);
+      }
+      #maincont {
+        background-color: greenyellow;
+        width: 94vw;
+        height: 97vh;
+      }
+      #sky {
+        background-color: cyan;
+        width: 100%;
+        height: 85%;
+        overflow: hidden;
+      }
+      #ground {
+        background-color: brown;
+        width: 100%;
+        height: 15%;
+      }
+      #boy {
+        background-color: green;
+        width: 70px;
+        height: 70px;
+        border-radius: 8px;
+        position: absolute;
+        transform: translateY(25.6rem) translateX(2rem);
+      }
+      .tray {
+        background-color: red;
+        width: 100px;
+        height: 10px;
+        position: relative;
+        border-radius: 8px;
+        top: 25rem;
+        left: 8rem;
+      }
+      #t2 {
+        top: 27rem;
+        left: 14rem;
+      }
+      #t3 {
+        top: 28rem;
+        left: 20rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="maincont">
+      <div id="sky">
+        <div id="boy"></div>
+        <div class="tray world" id="t1"></div>
+      </div>
+      <div id="ground"></div>
+    </div>
+  </body>
+  <script>
+    let sky = document.getElementById("sky");
+    let boy = document.getElementById("boy");
+    let ground = document.getElementById("ground");
+    let boyx = 2;
+    let boyy = 25.6;
+    let worldx = 2;
+    let worldy = 25.6;
+    let facefront = true;
+    let isjumping = false;
+    isdoubledjumped = true;
+    let tim1 = 0;
+    let traysep = 2;
+
+    let int3 = setInterval(() => {
+      let randy = Math.floor(Math.random() * (27.5 - 6 + 1) + 6);
+      tim1++;
+      traysep += 4;
+      let tr = document.createElement("div");
+      tr.classList.add("tray");
+      tr.classList.add("world");
+      tr.style.top = randy + "rem";
+      tr.style.left = traysep + "rem";
+      sky.appendChild(tr);
+      if (tim1 == 15) {
+        clearInterval(int3);
+      }
+    }, 1);
+    let world;
+    let boypos;
+    let skypos;
+    let wpos;
+
+    setInterval(async () => {
+      let wd = [...document.getElementsByClassName("world")];
+      let bs = boy.getBoundingClientRect();
+      let ss = sky.getBoundingClientRect();
+      wd.forEach((w) => {
+        ws = w.getBoundingClientRect();
+      });
+      world = wd;
+      boypos = bs;
+      skypos = ss;
+      wpos = ws;
+      console.log(-wpos.top + boypos.top);
+    }, 1);
+
+    document.addEventListener("keydown", (e) => {
+      world.forEach((w) => {
+        let int4 = setInterval(async () => {
+          if (
+            (wpos.x - boypos.x < 60 && wpos.x - boypos.x > 0) ||
+            (boypos.x - wpos.x < 60 &&
+              boypos.x - wpos.x > 0 &&
+              wpos.y - boypos.y < 5 &&
+              wpos.y - boypos.y > 0)
+          ) {
+            boy.style.top = -wpos.y + 350 + "px";
+            clearInterval(int4);
+          } else {
+            boy.style.top = 0;
+          }
+        }, 1);
+      });
+
+      if (e.key == "ArrowRight") {
+        facefront = true;
+        boyx++;
+        worldx += 0.6;
+        boy.style.transform = `translateY(${boyy}rem) translateX(${boyx}rem)`;
+        world.forEach((w) => {
+          w.style.transform = `translateY(${0}rem) translateX(${-worldx}rem)`;
+        });
+        if (skypos.width - boypos.x < 76) {
+          boyx--;
+        }
+      }
+
+      if (e.key == "ArrowLeft") {
+        facefront = false;
+        boyx--;
+        worldx--;
+        boy.style.transform = `translateY(${boyy}rem) translateX(${boyx}rem)`;
+        world.forEach((w) => {
+          w.style.transform = `translateY(${0}rem) translateX(${-worldx}rem)`;
+        });
+        if (boypos.x < 25) {
+          boyx++;
+        }
+      }
+
+      if (e.key == "ArrowUp") {
+        if (!isjumping && isdoubledjumped) {
+          let ty = 0;
+          let int1 = setInterval(() => {
+            boyy -= 0.2;
+            if (facefront) {
+              boyx += 0.06;
+            } else {
+              boyx -= 0.06;
+            }
+            boy.style.transform = `translateY(${boyy}rem) translateX(${boyx}rem)`;
+            if (ty == 30) {
+              clearInterval(int1);
+              let ty2 = 0;
+              let int2 = setInterval(() => {
+                boyy += 0.2;
+                if (facefront) {
+                  boyx += 0.06;
+                } else {
+                  boyx -= 0.06;
+                }
+                boy.style.transform = `translateY(${boyy}rem) translateX(${boyx}rem)`;
+                if (ty2 == 30) {
+                  clearInterval(int2);
+                }
+                ty2++;
+              }, 1);
+            }
+            ty++;
+          }, 1);
+          isjumping = true;
+          isdoubledjumped = false;
+          setTimeout(() => {
+            isdoubledjumped = true;
+            isjumping = false;
+          }, 500);
+        } else if (!isdoubledjumped && isjumping) {
+          let tx = 0;
+          let ty = 0;
+          let int1 = setInterval(() => {
+            boyy -= 0.2;
+            if (facefront) {
+              boyx += 0.06;
+            } else {
+              boyx -= 0.06;
+            }
+            boy.style.transform = `translateY(${boyy}rem) translateX(${boyx}rem)`;
+            if (ty == 60) {
+              clearInterval(int1);
+              let ty2 = 0;
+              let int2 = setInterval(() => {
+                boyy += 0.2;
+                if (facefront) {
+                  boyx += 0.06;
+                } else {
+                  boyx -= 0.06;
+                }
+                boy.style.transform = `translateY(${boyy}rem) translateX(${boyx}rem)`;
+                if (ty2 == 60) {
+                  clearInterval(int2);
+                }
+                ty2++;
+              }, 2);
+            }
+            ty++;
+          }, 2);
+          isjumping = false;
+          isdoubledjumped = true;
+        }
+      }
+    });
+  </script>
+</html>

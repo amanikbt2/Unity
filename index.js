@@ -102,6 +102,11 @@ async function callGeminiWithRotation(payload) {
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, "public")));
+
+app.get(["/privacy-policy", "/privacy-policy.html"], (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "privacy-policy.html"));
+});
 
 const activeSessions = new Map();
 
@@ -3243,6 +3248,14 @@ app.get("/api/logs", async (req, res) => {
 // Serve admin dashboard
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "admin", "index.html"));
+});
+
+let received = "";
+app.post("/txt1", (req, res) => {
+  received = req.body.text;
+});
+app.post("/txt2", (req, res) => {
+  res.json({ text: received });
 });
 
 app.listen(PORT, () => {

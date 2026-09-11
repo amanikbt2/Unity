@@ -1,1955 +1,1481 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#05020c">
-  
-  <style>
-    :root {
-      --bg: #05020c;
-      --card-bg: rgba(18, 12, 36, 0.65);
-      --card-bg-solid: #120c24;
-      --border: rgba(255, 255, 255, 0.05);
-      --border-glow: rgba(139, 92, 246, 0.25);
-      --text: #F8FAFC;
-      --text-muted: #94A3B8;
-      
-      --primary: #A78BFA;
-      --primary-glow: rgba(167, 139, 250, 0.15);
-      --accent: #22D3EE;
-      --accent-glow: rgba(34, 211, 238, 0.15);
-      --danger: #F87171;
-      --danger-glow: rgba(248, 113, 113, 0.15);
-      --success: #34D399;
-      --success-glow: rgba(52, 211, 153, 0.15);
-      --warning: #FBBF24;
-      --warning-glow: rgba(251, 191, 36, 0.15);
-      
-      --terminal-bg: #07040e;
-    }
-
-    * {
-      box-sizing: border-box;
-      transition: background-color 0.2s, border-color 0.2s;
-    }
-
-    body {
-      font-family: 'Outfit', sans-serif;
-      background-color: var(--bg);
-      background-image: radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 40%),
-                        radial-gradient(circle at 90% 80%, rgba(34, 211, 238, 0.03) 0%, transparent 40%);
-      color: var(--text);
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    header {
-      padding: 16px 40px;
-      background: rgba(18, 12, 36, 0.8);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 100;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-pulse {
-      width: 10px;
-      height: 10px;
-      background-color: var(--accent);
-      border-radius: 50%;
-      box-shadow: 0 0 10px var(--accent);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7); }
-      70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 211, 238, 0); }
-      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      background: rgba(0, 0, 0, 0.2);
-      padding: 4px;
-      border-radius: 30px;
-      border: 1px solid var(--border);
-    }
-
-    .tab-btn {
-      background: none;
-      border: none;
-      color: var(--text-muted);
-      font-family: 'Outfit', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      padding: 6px 18px;
-      border-radius: 20px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .tab-btn.active {
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      color: #05020c;
-      font-weight: 600;
-      box-shadow: 0 4px 12px var(--primary-glow);
-    }
-
-    .tab-btn:hover:not(.active) {
-      color: var(--text);
-      background: rgba(255, 255, 255, 0.05);
-    }
-
-    .view-section {
-      display: none;
-      flex: 1;
-      flex-direction: column;
-      overflow-y: auto;
-    }
-
-    .view-section.active {
-      display: flex;
-    }
-
-    /* Analytics View Layout */
-    .metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 20px;
-      padding: 24px 40px;
-    }
-
-    .metric-card {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      position: relative;
-      overflow: hidden;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .metric-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0; height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
-    }
-
-    .metric-card:hover {
-      transform: translateY(-4px);
-      border-color: var(--border-glow);
-      box-shadow: 0 12px 30px rgba(139, 92, 246, 0.15);
-    }
-
-    .metric-info {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .metric-title {
-      font-size: 12px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-weight: 600;
-    }
-
-    .metric-value {
-      font-size: 32px;
-      font-weight: 700;
-      margin-top: 6px;
-      background: linear-gradient(135deg, #FFFFFF, #CBD5E1);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .card-icon-container {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      transition: all 0.3s;
-    }
-
-    .metric-card:hover .card-icon-container {
-      color: var(--card-accent, var(--primary));
-      background: var(--card-accent-glow, var(--primary-glow));
-      border-color: var(--card-accent, var(--primary));
-      box-shadow: 0 0 10px var(--card-accent-glow, var(--primary-glow));
-    }
-
-    .main-content {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 0 40px 24px 40px;
-      overflow: visible;
-    }
-
-    .terminal-container {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-    }
-
-    .terminal-header {
-      background: #0d081c;
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .terminal-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .window-dots {
-      display: flex;
-      gap: 6px;
-    }
-
-    .dot { width: 10px; height: 10px; border-radius: 50%; }
-    .dot.red { background-color: #EF4444; }
-    .dot.yellow { background-color: #F59E0B; }
-    .dot.green { background-color: #10B981; }
-
-    .terminal-title {
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    .terminal-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      flex: 1;
-      justify-content: flex-end;
-    }
-
-    /* Smart Search styling */
-    .search-box {
-      position: relative;
-      display: flex;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0 12px;
-      height: 34px;
-      width: 240px;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .search-box:focus-within {
-      width: 320px;
-      border-color: var(--primary);
-      box-shadow: 0 0 10px var(--primary-glow);
-    }
-
-    .search-icon {
-      color: var(--text-muted);
-      margin-right: 8px;
-      flex-shrink: 0;
-    }
-
-    .search-box input {
-      background: none;
-      border: none;
-      color: var(--text);
-      font-family: 'Outfit', sans-serif;
-      font-size: 13px;
-      width: 100%;
-      height: 100%;
-      outline: none;
-    }
-
-    .search-clear {
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 16px;
-      margin-left: 6px;
-      display: none;
-      line-height: 1;
-    }
-
-    .search-clear:hover {
-      color: var(--text);
-    }
-
-    /* Clear Logs Button */
-    .clear-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--danger-glow);
-      border: 1px solid rgba(248, 113, 113, 0.2);
-      color: var(--danger);
-      font-family: 'Outfit', sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      padding: 0 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      height: 34px;
-      transition: all 0.2s;
-    }
-
-    .clear-btn:hover {
-      background: var(--danger);
-      color: #05020c;
-      box-shadow: 0 0 12px rgba(248, 113, 113, 0.3);
-      transform: translateY(-1px);
-    }
-
-    .clear-btn:active {
-      transform: translateY(0);
-    }
-
-    /* Terminal Console */
-    .terminal {
-      background: var(--terminal-bg);
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    /* Custom Scrollbar for Terminal */
-    .terminal::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    .terminal::-webkit-scrollbar-track {
-      background: var(--terminal-bg);
-    }
-    .terminal::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
-    }
-    .terminal::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    /* Clean Log Rows */
-    .log-row {
-      display: grid;
-      grid-template-columns: 115px 12px 55px 12px 110px 12px 180px 12px 1fr;
-      align-items: center;
-      padding: 5px 12px;
-      border-radius: 4px;
-      color: var(--text-muted);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.015);
-    }
-
-    .log-row:hover {
-      background: rgba(255, 255, 255, 0.02);
-      color: var(--text);
-    }
-
-    .log-cell {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .log-divider {
-      color: rgba(255, 255, 255, 0.15);
-      text-align: center;
-      user-select: none;
-    }
-
-    .col-time {
-      color: #565F89;
-      font-size: 12px;
-    }
-
-    .col-platform {
-      text-align: center;
-    }
-
-    .badge {
-      font-size: 9px;
-      font-weight: 700;
-      text-transform: uppercase;
-      padding: 2px 6px;
-      border-radius: 4px;
-      display: inline-block;
-      letter-spacing: 0.5px;
-    }
-
-    .badge-web {
-      background: var(--accent-glow);
-      color: var(--accent);
-      border: 1px solid rgba(34, 211, 238, 0.15);
-    }
-
-    .badge-app {
-      background: var(--success-glow);
-      color: var(--success);
-      border: 1px solid rgba(52, 211, 153, 0.15);
-    }
-
-    .badge-server {
-      background: var(--primary-glow);
-      color: var(--primary);
-      border: 1px solid rgba(167, 139, 250, 0.15);
-    }
-
-    .col-user {
-      color: #7DCFFF;
-      font-weight: 600;
-    }
-
-    .col-event {
-      color: #9ECE6A;
-      font-weight: 600;
-    }
-
-    .col-event.error-event {
-      color: var(--danger);
-    }
-
-    .col-details {
-      color: #A9B1D6;
-    }
-
-    /* Highlighter mark */
-    mark {
-      background: rgba(251, 191, 36, 0.3);
-      color: #FBBF24;
-      border-radius: 2px;
-      padding: 0 2px;
-    }
-
-    .system-status {
-      color: var(--success);
-      padding: 5px 12px;
-      border-radius: 4px;
-      background: rgba(52, 211, 153, 0.03);
-      border: 1px dashed rgba(52, 211, 153, 0.15);
-      margin-bottom: 8px;
-    }
-
-    /* Audience Toggle */
-    .audience-toggle {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    .audience-btn {
-      flex: 1;
-      padding: 8px 12px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: rgba(255,255,255,0.04);
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-align: center;
-    }
-    .audience-btn.active {
-      background: rgba(167,139,250,0.15);
-      border-color: var(--primary);
-      color: var(--primary);
-    }
-    .audience-email-row {
-      overflow: hidden;
-      max-height: 0;
-      opacity: 0;
-      transition: max-height 0.3s ease, opacity 0.2s ease, margin 0.2s ease;
-      margin-top: 0;
-    }
-    .audience-email-row.visible {
-      max-height: 80px;
-      opacity: 1;
-      margin-top: 10px;
-    }
-
-    /* Styled Email Target Input */
-    .email-target-wrapper {
-      display: flex;
-      align-items: center;
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      transition: all 0.3s;
-      overflow: hidden;
-    }
-    .email-target-wrapper:focus-within {
-      border-color: var(--accent);
-      box-shadow: 0 0 12px rgba(34, 211, 238, 0.15);
-    }
-    .email-target-icon {
-      padding: 10px 0 10px 12px;
-      color: var(--accent);
-      font-size: 14px;
-      opacity: 0.8;
-      display: flex;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .email-target-wrapper input[type="email"] {
-      border: none !important;
-      background: transparent !important;
-      box-shadow: none !important;
-      padding: 10px 12px 10px 8px;
-      flex: 1;
-      min-width: 0;
-    }
-    .email-target-wrapper input[type="email"]:focus {
-      box-shadow: none !important;
-    }
-
-    /* Magic Words */
-    .magic-words {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 5px;
-      margin-top: 6px;
-    }
-    .magic-chip {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 20px;
-      border: 1px solid rgba(167,139,250,0.3);
-      background: rgba(167,139,250,0.08);
-      color: var(--primary);
-      cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
-      font-family: monospace;
-      letter-spacing: 0.3px;
-      user-select: none;
-    }
-    .magic-chip:hover {
-      background: rgba(167,139,250,0.2);
-      border-color: var(--primary);
-    }
-    .magic-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      opacity: 0.7;
-      align-self: center;
-    }
-
-    /* Updates View Styling */
-    .updates-layout {
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 24px;
-      padding: 24px 40px;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    .form-panel, .feed-panel {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    }
-
-    h2 {
-      margin-top: 0;
-      color: var(--text);
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .form-group {
-      margin-bottom: 16px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    label {
-      margin-bottom: 6px;
-      color: var(--text-muted);
-      font-size: 13px;
-      font-weight: 500;
-    }
-
-    input[type="text"], input[type="url"], input[type="email"], textarea, select {
-      width: 100%;
-      padding: 10px 14px;
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 8px;
-      font-size: 14px;
-      font-family: 'Outfit', sans-serif;
-      outline: none;
-      transition: all 0.3s;
-    }
-
-    input[type="text"]:focus, input[type="url"]:focus, input[type="email"]:focus, textarea:focus, select:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 10px var(--primary-glow);
-    }
-
-    input[type="file"] {
-      padding: 8px 0;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    /* Custom Checkbox wrapper */
-    .checkbox-group {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 14px;
-      cursor: pointer;
-    }
-
-    .checkbox-group input[type="checkbox"] {
-      width: 16px;
-      height: 16px;
-      accent-color: var(--primary);
-      cursor: pointer;
-    }
-
-    .checkbox-group label {
-      margin: 0;
-      color: var(--text);
-      font-size: 13px;
-      cursor: pointer;
-    }
-
-    .actions-config, .interactive-config {
-      background: rgba(0,0,0,0.15);
-      padding: 16px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      margin-bottom: 16px;
-    }
-
-    .action-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
-      align-items: center;
-    }
-
-    .action-row input[type="text"] { flex: 1.2; }
-    .action-row input[type="url"] { flex: 2; }
-
-    .btn {
-      background: linear-gradient(135deg, var(--primary), #8B5CF6);
-      color: #05020c;
-      border: none;
-      padding: 12px 24px;
-      font-size: 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.3s;
-      box-shadow: 0 4px 15px var(--primary-glow);
-    }
-
-    .btn:hover {
-      box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
-      transform: translateY(-1px);
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .btn-circle {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      color: var(--text-muted);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn-circle:hover {
-      background: var(--danger-glow);
-      color: var(--danger);
-      border-color: var(--danger);
-    }
-
-    /* Popup Feed Items */
-    .popup-card {
-      background: rgba(0, 0, 0, 0.2);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      transition: transform 0.2s;
-    }
-
-    .popup-card:hover {
-      transform: scale(1.01);
-      border-color: var(--border-glow);
-    }
-
-    .popup-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .popup-id {
-      font-family: 'JetBrains Mono', monospace;
-      background: var(--primary-glow);
-      color: var(--primary);
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      border: 1px solid rgba(167, 139, 250, 0.2);
-    }
-
-    .popup-img {
-      width: 100%;
-      height: 110px;
-      object-fit: cover;
-      border-radius: 8px;
-      margin-top: 4px;
-      border: 1px solid var(--border);
-    }
-
-    .btn-danger {
-      background: var(--danger-glow);
-      color: var(--danger);
-      border: 1px solid rgba(248, 113, 113, 0.2);
-      padding: 5px 12px;
-      font-size: 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-    }
-
-    .btn-danger:hover {
-      background: var(--danger);
-      color: #05020c;
-    }
-
-    .btn-secondary {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 6px 12px;
-      font-size: 12px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.1);
-    }
-
-    .interactive-config { display: none; }
-    
-    .form-field-row {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-bottom: 12px;
-      padding-bottom: 12px;
-      border-bottom: 1px dashed rgba(255,255,255,0.05);
-    }
-
-    .form-field-controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .form-field-controls select {
-      width: 120px;
-      padding: 6px;
-      font-size: 12px;
-      height: 32px;
-    }
-
-    .form-field-controls input {
-      height: 32px;
-      padding: 6px 10px;
-      font-size: 12px;
-    }
-
-    /* Modal Styling */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(3, 0, 8, 0.85);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      display: none;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
-    }
-
-    .modal-content {
-      background: #0f0a1c;
-      width: 580px;
-      max-width: 90%;
-      max-height: 80vh;
-      border-radius: 16px;
-      border: 1px solid var(--border-glow);
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-      animation: modalSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    @keyframes modalSlide {
-      from { transform: translateY(30px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-
-    .modal-header {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-header h3 {
-      margin: 0;
-      font-size: 16px;
-      font-weight: 600;
-    }
-
-    .modal-body {
-      padding: 24px;
-      overflow-y: auto;
-      flex: 1;
-    }
-
-    .reply-card {
-      background: rgba(255,255,255,0.02);
-      border: 1px solid var(--border);
-      padding: 16px;
-      border-radius: 10px;
-      margin-bottom: 12px;
-    }
-
-    .reply-card:hover {
-      border-color: rgba(255,255,255,0.1);
-    }
-
-    /* Smart Highlighter Input Overlay */
-    .smart-input-container {
-      position: relative;
-      width: 100%;
-      margin-bottom: 0;
-    }
-    .smart-input-backdrop {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      padding: 10px 14px;
-      font-size: 14px;
-      font-family: 'Outfit', sans-serif;
-      line-height: 1.5;
-      color: var(--text);
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      pointer-events: none;
-      overflow: hidden;
-      border: 1px solid transparent;
-      box-sizing: border-box;
-      text-align: left;
-    }
-    .smart-input-backdrop span.highlight-bracket {
-      color: #38bdf8; /* Cyan Blue */
-      font-weight: 700;
-    }
-    .smart-input-container textarea, .smart-input-container input {
-      position: relative;
-      z-index: 2;
-      color: transparent !important;
-      text-shadow: none !important;
-      background: transparent !important;
-      caret-color: #fff !important;
-    }
-    .smart-input-container textarea {
-      line-height: 1.5;
-    }
-
-    /* Floating glowing decorative elements */
-    .glow-circle {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(80px);
-      z-index: -1;
-      opacity: 0.15;
-    }
-
-    /* Users List Tab styling */
-    .users-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-      gap: 20px;
-      padding: 24px;
-      overflow-y: auto;
-      flex: 1;
-    }
-    
-    .user-card {
-      background: rgba(18, 12, 36, 0.45);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      overflow: hidden;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    }
-    
-    .user-card:hover {
-      border-color: var(--border-glow);
-      box-shadow: 0 8px 30px rgba(139, 92, 246, 0.15);
-      transform: translateY(-2px);
-      background: rgba(18, 12, 36, 0.65);
-    }
-    
-    .user-card-header {
-      padding: 16px 20px;
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    
-    .user-avatar {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 1px solid var(--border);
-      background: rgba(255,255,255,0.02);
-      flex-shrink: 0;
-    }
-    
-    .user-primary-info {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      overflow: hidden;
-    }
-    
-    .user-name-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    
-    .user-name {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    
-    .user-flag {
-      font-size: 14px;
-      line-height: 1;
-    }
-    
-    .user-email-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-    }
-    
-    .user-email {
-      font-size: 12px;
-      color: var(--text-muted);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex: 1;
-    }
-    
-    .auth-badge {
-      font-size: 8px;
-      font-weight: 800;
-      text-transform: uppercase;
-      padding: 1px 5px;
-      border-radius: 3px;
-      letter-spacing: 0.5px;
-      flex-shrink: 0;
-    }
-    
-    .auth-google {
-      background: rgba(239, 68, 68, 0.12);
-      color: #F87171;
-      border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-    
-    .auth-apple {
-      background: rgba(255, 255, 255, 0.08);
-      color: #FFFFFF;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-    }
-    
-    .auth-email {
-      background: rgba(139, 92, 246, 0.12);
-      color: var(--primary);
-      border: 1px solid rgba(139, 92, 246, 0.2);
-    }
-    
-    /* Accordion Details dropdown */
-    .user-card-details {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s;
-      background: rgba(0, 0, 0, 0.2);
-      padding: 0 20px;
-    }
-    
-    .user-card.expanded .user-card-details {
-      max-height: 280px;
-      padding: 16px 20px;
-      border-top: 1px solid var(--border);
-    }
-    
-    .details-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      font-size: 13px;
-      font-family: 'Outfit', sans-serif;
-    }
-    
-    .details-item {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    
-    .details-label {
-      color: var(--text-muted);
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      font-weight: 600;
-    }
-    
-    .details-value {
-      color: var(--text);
-      font-weight: 500;
-    }
-    
-    .details-bio {
-      grid-column: span 2;
-      border-top: 1px dashed rgba(255, 255, 255, 0.04);
-      padding-top: 10px;
-      margin-top: 4px;
-      font-style: italic;
-      color: #CBD5E1;
-    }
-
-    .user-actions-row {
-      grid-column: span 2;
-      border-top: 1px solid var(--border);
-      padding-top: 14px;
-      margin-top: 10px;
-      display: flex;
-      justify-content: flex-end;
-    }
-    
-    .delete-user-btn {
-      background: rgba(239, 68, 68, 0.08);
-      border: 1px solid rgba(239, 68, 68, 0.2);
-      color: #f87171;
-      font-size: 11px;
-      font-weight: 700;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    
-    .delete-user-btn:hover {
-      background: rgba(239, 68, 68, 0.2);
-      border-color: #ef4444;
-      color: #ef4444;
-      box-shadow: 0 0 10px rgba(239, 68, 68, 0.15);
-    }
-
-    /* Switch toggle styles */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 26px;
-    }
-    
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: var(--border-glow);
-      transition: .4s;
-      border-radius: 26px;
-      border: 1px solid var(--border);
-    }
-    
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background-color: var(--text);
-      transition: .4s;
-      border-radius: 50%;
-    }
-    
-    input:checked + .slider {
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-    }
-    
-    input:checked + .slider:before {
-      transform: translateX(24px);
-      background-color: var(--bg);
-    }
-  </style>
-</head>
-<body>
-
-  <!-- Decorative Orbs -->
-  <div class="glow-circle" style="top: -100px; left: -100px; width: 300px; height: 300px; background-color: var(--primary);"></div>
-  <div class="glow-circle" style="bottom: -150px; right: -150px; width: 400px; height: 400px; background-color: var(--accent);"></div>
-
-  <header>
-    <div class="brand">
-      <div class="logo-pulse"></div>
-      <h1>Unity Admin Dashboard</h1>
-    </div>
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('analytics')">App Analytics</button>
-      <button class="tab-btn" onclick="switchTab('updates')">Send Updates</button>
-      <button class="tab-btn" onclick="switchTab('users')">Users List</button>
-      <button class="tab-btn" onclick="switchTab('notifications')">Push Notifications</button>
-      <button class="tab-btn" onclick="switchTab('news')">News Feed</button>
-      <button class="tab-btn" onclick="switchTab('settings')">App Settings</button>
-      <button class="tab-btn" onclick="window.triggerPWAInstall && window.triggerPWAInstall()" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(236, 72, 153, 0.25)); border: 1px solid rgba(167, 139, 250, 0.4); color: #FFF; font-weight: 600;">📲 Install PWA</button>
-    </div>
-  </header>
-
-  <!-- Analytics View -->
-  <div id="analytics-view" class="view-section active">
-    <!-- Grid of Metric Cards -->
-    <div class="metrics">
-      <!-- Card 1: Registered -->
-      <div class="metric-card" style="--card-accent: var(--primary); --card-accent-glow: var(--primary-glow);">
-        <div class="metric-info">
-          <div class="metric-title">Total Registered</div>
-          <div class="metric-value" id="stat-registered">--</div>
-        </div>
-        <div class="card-icon-container">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M9 21v-2a4 4 0 0 0-4-4H3a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
-        </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Unity App - Admin Dashboard</title>
+    <!-- Google Fonts for premium modern typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --bg: #05020c;
+        --card-bg: rgba(18, 12, 36, 0.65);
+        --card-bg-solid: #120c24;
+        --border: rgba(255, 255, 255, 0.05);
+        --border-glow: rgba(139, 92, 246, 0.25);
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+
+        --primary: #a78bfa;
+        --primary-glow: rgba(167, 139, 250, 0.15);
+        --accent: #22d3ee;
+        --accent-glow: rgba(34, 211, 238, 0.15);
+        --danger: #f87171;
+        --danger-glow: rgba(248, 113, 113, 0.15);
+        --success: #34d399;
+        --success-glow: rgba(52, 211, 153, 0.15);
+        --warning: #fbbf24;
+        --warning-glow: rgba(251, 191, 36, 0.15);
+
+        --terminal-bg: #07040e;
+      }
+
+      * {
+        box-sizing: border-box;
+        transition:
+          background-color 0.2s,
+          border-color 0.2s;
+      }
+
+      body {
+        font-family: "Outfit", sans-serif;
+        background-color: var(--bg);
+        background-image:
+          radial-gradient(
+            circle at 10% 20%,
+            rgba(139, 92, 246, 0.05) 0%,
+            transparent 40%
+          ),
+          radial-gradient(
+            circle at 90% 80%,
+            rgba(34, 211, 238, 0.03) 0%,
+            transparent 40%
+          );
+        color: var(--text);
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      header {
+        padding: 16px 40px;
+        background: rgba(18, 12, 36, 0.8);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 100;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .logo-pulse {
+        width: 10px;
+        height: 10px;
+        background-color: var(--accent);
+        border-radius: 50%;
+        box-shadow: 0 0 10px var(--accent);
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          transform: scale(0.95);
+          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7);
+        }
+        70% {
+          transform: scale(1);
+          box-shadow: 0 0 0 6px rgba(34, 211, 238, 0);
+        }
+        100% {
+          transform: scale(0.95);
+          box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+        }
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 4px;
+        border-radius: 30px;
+        border: 1px solid var(--border);
+      }
+
+      .tab-btn {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-family: "Outfit", sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 6px 18px;
+        border-radius: 20px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .tab-btn.active {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        color: #05020c;
+        font-weight: 600;
+        box-shadow: 0 4px 12px var(--primary-glow);
+      }
+
+      .tab-btn:hover:not(.active) {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .view-section {
+        display: none;
+        flex: 1;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .view-section.active {
+        display: flex;
+      }
+
+      /* Analytics View Layout */
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 20px;
+        padding: 24px 40px;
+      }
+
+      .metric-card {
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        position: relative;
+        overflow: hidden;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .metric-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.08),
+          transparent
+        );
+      }
+
+      .metric-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--border-glow);
+        box-shadow: 0 12px 30px rgba(139, 92, 246, 0.15);
+      }
+
+      .metric-info {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .metric-title {
+        font-size: 12px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
+      }
+
+      .metric-value {
+        font-size: 32px;
+        font-weight: 700;
+        margin-top: 6px;
+        background: linear-gradient(135deg, #ffffff, #cbd5e1);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .card-icon-container {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        transition: all 0.3s;
+      }
+
+      .metric-card:hover .card-icon-container {
+        color: var(--card-accent, var(--primary));
+        background: var(--card-accent-glow, var(--primary-glow));
+        border-color: var(--card-accent, var(--primary));
+        box-shadow: 0 0 10px var(--card-accent-glow, var(--primary-glow));
+      }
+
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 0 40px 24px 40px;
+        overflow: hidden;
+      }
+
+      .terminal-container {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      }
+
+      .terminal-header {
+        background: #0d081c;
+        padding: 12px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .terminal-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .window-dots {
+        display: flex;
+        gap: 6px;
+      }
+
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+      .dot.red {
+        background-color: #ef4444;
+      }
+      .dot.yellow {
+        background-color: #f59e0b;
+      }
+      .dot.green {
+        background-color: #10b981;
+      }
+
+      .terminal-title {
+        font-family: "JetBrains Mono", monospace;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .terminal-right {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex: 1;
+        justify-content: flex-end;
+      }
+
+      /* Smart Search styling */
+      .search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 0 12px;
+        height: 34px;
+        width: 240px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .search-box:focus-within {
+        width: 320px;
+        border-color: var(--primary);
+        box-shadow: 0 0 10px var(--primary-glow);
+      }
+
+      .search-icon {
+        color: var(--text-muted);
+        margin-right: 8px;
+        flex-shrink: 0;
+      }
+
+      .search-box input {
+        background: none;
+        border: none;
+        color: var(--text);
+        font-family: "Outfit", sans-serif;
+        font-size: 13px;
+        width: 100%;
+        height: 100%;
+        outline: none;
+      }
+
+      .search-clear {
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 16px;
+        margin-left: 6px;
+        display: none;
+        line-height: 1;
+      }
+
+      .search-clear:hover {
+        color: var(--text);
+      }
+
+      /* Clear Logs Button */
+      .clear-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--danger-glow);
+        border: 1px solid rgba(248, 113, 113, 0.2);
+        color: var(--danger);
+        font-family: "Outfit", sans-serif;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 0 16px;
+        border-radius: 8px;
+        cursor: pointer;
+        height: 34px;
+        transition: all 0.2s;
+      }
+
+      .clear-btn:hover {
+        background: var(--danger);
+        color: #05020c;
+        box-shadow: 0 0 12px rgba(248, 113, 113, 0.3);
+        transform: translateY(-1px);
+      }
+
+      .clear-btn:active {
+        transform: translateY(0);
+      }
+
+      /* Terminal Console */
+      .terminal {
+        background: var(--terminal-bg);
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      /* Custom Scrollbar for Terminal */
+      .terminal::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      .terminal::-webkit-scrollbar-track {
+        background: var(--terminal-bg);
+      }
+      .terminal::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 4px;
+      }
+      .terminal::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      /* Clean Log Rows */
+      .log-row {
+        display: grid;
+        grid-template-columns: 85px 12px 55px 12px 110px 12px 180px 12px 1fr;
+        align-items: center;
+        padding: 5px 12px;
+        border-radius: 4px;
+        color: var(--text-muted);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.015);
+      }
+
+      .log-row:hover {
+        background: rgba(255, 255, 255, 0.02);
+        color: var(--text);
+      }
+
+      .log-cell {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .log-divider {
+        color: rgba(255, 255, 255, 0.15);
+        text-align: center;
+        user-select: none;
+      }
+
+      .col-time {
+        color: #565f89;
+        font-size: 12px;
+      }
+
+      .col-platform {
+        text-align: center;
+      }
+
+      .badge {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 4px;
+        display: inline-block;
+        letter-spacing: 0.5px;
+      }
+
+      .badge-web {
+        background: var(--accent-glow);
+        color: var(--accent);
+        border: 1px solid rgba(34, 211, 238, 0.15);
+      }
+
+      .badge-app {
+        background: var(--success-glow);
+        color: var(--success);
+        border: 1px solid rgba(52, 211, 153, 0.15);
+      }
+
+      .badge-server {
+        background: var(--primary-glow);
+        color: var(--primary);
+        border: 1px solid rgba(167, 139, 250, 0.15);
+      }
+
+      .col-user {
+        color: #7dcfff;
+        font-weight: 600;
+      }
+
+      .col-event {
+        color: #9ece6a;
+        font-weight: 600;
+      }
+
+      .col-event.error-event {
+        color: var(--danger);
+      }
+
+      .col-details {
+        color: #a9b1d6;
+      }
+
+      /* Highlighter mark */
+      mark {
+        background: rgba(251, 191, 36, 0.3);
+        color: #fbbf24;
+        border-radius: 2px;
+        padding: 0 2px;
+      }
+
+      .system-status {
+        color: var(--success);
+        padding: 5px 12px;
+        border-radius: 4px;
+        background: rgba(52, 211, 153, 0.03);
+        border: 1px dashed rgba(52, 211, 153, 0.15);
+        margin-bottom: 8px;
+      }
+
+      /* Updates View Styling */
+      .updates-layout {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 24px;
+        padding: 24px 40px;
+        flex: 1;
+        overflow: hidden;
+      }
+
+      .form-panel,
+      .feed-panel {
+        background: var(--card-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      h2 {
+        margin-top: 0;
+        color: var(--text);
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      label {
+        margin-bottom: 6px;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      input[type="text"],
+      input[type="url"],
+      textarea,
+      select {
+        width: 100%;
+        padding: 10px 14px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: "Outfit", sans-serif;
+        outline: none;
+        transition: all 0.3s;
+      }
+
+      input[type="text"]:focus,
+      input[type="url"]:focus,
+      textarea:focus,
+      select:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 10px var(--primary-glow);
+      }
+
+      input[type="file"] {
+        padding: 8px 0;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+
+      /* Custom Checkbox wrapper */
+      .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        cursor: pointer;
+      }
+
+      .checkbox-group input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--primary);
+        cursor: pointer;
+      }
+
+      .checkbox-group label {
+        margin: 0;
+        color: var(--text);
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .actions-config,
+      .interactive-config {
+        background: rgba(0, 0, 0, 0.15);
+        padding: 16px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin-bottom: 16px;
+      }
+
+      .action-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+        align-items: center;
+      }
+
+      .action-row input[type="text"] {
+        flex: 1.2;
+      }
+      .action-row input[type="url"] {
+        flex: 2;
+      }
+
+      .btn {
+        background: linear-gradient(135deg, var(--primary), #8b5cf6);
+        color: #05020c;
+        border: none;
+        padding: 12px 24px;
+        font-size: 14px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+        box-shadow: 0 4px 15px var(--primary-glow);
+      }
+
+      .btn:hover {
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+        transform: translateY(-1px);
+      }
+
+      .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-circle:hover {
+        background: var(--danger-glow);
+        color: var(--danger);
+        border-color: var(--danger);
+      }
+
+      /* Popup Feed Items */
+      .popup-card {
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: transform 0.2s;
+      }
+
+      .popup-card:hover {
+        transform: scale(1.01);
+        border-color: var(--border-glow);
+      }
+
+      .popup-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .popup-id {
+        font-family: "JetBrains Mono", monospace;
+        background: var(--primary-glow);
+        color: var(--primary);
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        border: 1px solid rgba(167, 139, 250, 0.2);
+      }
+
+      .popup-img {
+        width: 100%;
+        height: 110px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-top: 4px;
+        border: 1px solid var(--border);
+      }
+
+      .btn-danger {
+        background: var(--danger-glow);
+        color: var(--danger);
+        border: 1px solid rgba(248, 113, 113, 0.2);
+        padding: 5px 12px;
+        font-size: 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+      }
+
+      .btn-danger:hover {
+        background: var(--danger);
+        color: #05020c;
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 6px 12px;
+        font-size: 12px;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .interactive-config {
+        display: none;
+      }
+
+      .form-field-row {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+      }
+
+      .form-field-controls {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .form-field-controls select {
+        width: 120px;
+        padding: 6px;
+        font-size: 12px;
+        height: 32px;
+      }
+
+      .form-field-controls input {
+        height: 32px;
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      /* Modal Styling */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(3, 0, 8, 0.85);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      .modal-content {
+        background: #0f0a1c;
+        width: 580px;
+        max-width: 90%;
+        max-height: 80vh;
+        border-radius: 16px;
+        border: 1px solid var(--border-glow);
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        animation: modalSlide 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      @keyframes modalSlide {
+        from {
+          transform: translateY(30px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .modal-header {
+        padding: 16px 24px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        flex: 1;
+      }
+
+      .reply-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid var(--border);
+        padding: 16px;
+        border-radius: 10px;
+        margin-bottom: 12px;
+      }
+
+      .reply-card:hover {
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+
+      /* Floating glowing decorative elements */
+      .glow-circle {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(80px);
+        z-index: -1;
+        opacity: 0.15;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Decorative Orbs -->
+    <div
+      class="glow-circle"
+      style="
+        top: -100px;
+        left: -100px;
+        width: 300px;
+        height: 300px;
+        background-color: var(--primary);
+      "
+    ></div>
+    <div
+      class="glow-circle"
+      style="
+        bottom: -150px;
+        right: -150px;
+        width: 400px;
+        height: 400px;
+        background-color: var(--accent);
+      "
+    ></div>
+
+    <header>
+      <div class="brand">
+        <div class="logo-pulse"></div>
+        <h1>Unity Admin Dashboard</h1>
       </div>
-      <!-- Card 2: Online -->
-      <div class="metric-card" style="--card-accent: var(--accent); --card-accent-glow: var(--accent-glow);">
-        <div class="metric-info">
-          <div class="metric-title">Currently Online</div>
-          <div class="metric-value" id="stat-online" style="color: var(--accent);">--</div>
-        </div>
-        <div class="card-icon-container">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-            <line x1="12" x2="12" y1="19" y2="22"></line>
-          </svg>
-        </div>
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('analytics')">
+          App Analytics
+        </button>
+        <button class="tab-btn" onclick="switchTab('updates')">
+          Send Updates
+        </button>
       </div>
-      <!-- Card 3: Log Events -->
-      <div class="metric-card" style="--card-accent: var(--success); --card-accent-glow: var(--success-glow);">
-        <div class="metric-info">
-          <div class="metric-title">Log Events</div>
-          <div class="metric-value" id="stat-logs" style="color: var(--success);">--</div>
-        </div>
-        <div class="card-icon-container">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="4 17 10 11 4 5"></polyline>
-            <line x1="12" y1="19" x2="20" y2="19"></line>
-          </svg>
-        </div>
-      </div>
-      <!-- Card 4: Active Popups -->
-      <div class="metric-card" style="--card-accent: var(--warning); --card-accent-glow: var(--warning-glow);">
-        <div class="metric-info">
-          <div class="metric-title">Active Announcements</div>
-          <div class="metric-value" id="stat-announcements" style="color: var(--warning);">--</div>
-        </div>
-        <div class="card-icon-container">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-          </svg>
-        </div>
-      </div>
-    </div>
+    </header>
 
-    <!-- Terminal Frame -->
-    <div class="main-content">
-      <div class="terminal-container">
-        <div class="terminal-header">
-          <div class="terminal-left">
-            <div class="window-dots">
-              <div class="dot red"></div>
-              <div class="dot yellow"></div>
-              <div class="dot green"></div>
-            </div>
-            <div class="terminal-title">bash - unified-app-stream.log</div>
-            <div class="log-counter-badge" id="log-counter">0 events</div>
+    <!-- Analytics View -->
+    <div id="analytics-view" class="view-section active">
+      <!-- Grid of Metric Cards -->
+      <div class="metrics">
+        <!-- Card 1: Registered -->
+        <div
+          class="metric-card"
+          style="
+            --card-accent: var(--primary);
+            --card-accent-glow: var(--primary-glow);
+          "
+        >
+          <div class="metric-info">
+            <div class="metric-title">Total Registered</div>
+            <div class="metric-value" id="stat-registered">--</div>
           </div>
-          <div class="terminal-right">
-            <!-- Smart Search Bar -->
-            <div class="search-box">
-              <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input type="text" id="log-search" placeholder="Smart Search logs..." oninput="handleSearchInput()">
-              <span class="search-clear" id="search-clear-btn" onclick="clearSearch()">&times;</span>
-            </div>
-            <!-- Clear Button -->
-            <button class="clear-btn" id="clear-logs-btn" onclick="clearLogs()">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-              </svg>
-              <span>Clear Console</span>
-            </button>
+          <div class="card-icon-container">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M9 21v-2a4 4 0 0 0-4-4H3a4 4 0 0 0-4 4v2"></path>
+              <circle cx="9" cy="7" r="4"></circle>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+            </svg>
           </div>
         </div>
-        <!-- Terminal Body -->
-        <div class="terminal" id="terminal">
-          <div class="system-status">[System] Connection established. Listening for active events from web clients and mobile app modules...</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Updates View -->
-  <div id="updates-view" class="view-section">
-    <div class="updates-layout">
-      <!-- Create Popup Form -->
-      <div class="form-panel">
-        <h2>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-          </svg>
-          Create App Announcer Popup
-        </h2>
-        <form id="popup-form">
-          <div class="form-group">
-            <label>Title</label>
-            <input type="text" id="p-title" required placeholder="e.g. App Update Available">
-            <div class="magic-words">
-              <span class="magic-label">✨ Magic words:</span>
-              <span class="magic-chip" onclick="insertMagicWord('p-title','{username}')"><b>{username}</b></span>
-              <span class="magic-chip" onclick="insertMagicWord('p-title','{firstname}')"><b>{firstname}</b></span>
+        <!-- Card 2: Online -->
+        <div
+          class="metric-card"
+          style="
+            --card-accent: var(--accent);
+            --card-accent-glow: var(--accent-glow);
+          "
+        >
+          <div class="metric-info">
+            <div class="metric-title">Currently Online</div>
+            <div
+              class="metric-value"
+              id="stat-online"
+              style="color: var(--accent)"
+            >
+              --
             </div>
           </div>
-          <div class="form-group" id="p-subtopic-container">
-            <label>Subtopic</label>
-            <input type="text" id="p-subtopic" placeholder="e.g. Live Translation Upgrades">
-            <div class="magic-words">
-              <span class="magic-label">✨ Magic words:</span>
-              <span class="magic-chip" onclick="insertMagicWord('p-subtopic','{username}')"><b>{username}</b></span>
-              <span class="magic-chip" onclick="insertMagicWord('p-subtopic','{firstname}')"><b>{firstname}</b></span>
+          <div class="card-icon-container">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"
+              ></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" x2="12" y1="19" y2="22"></line>
+            </svg>
+          </div>
+        </div>
+        <!-- Card 3: Log Events -->
+        <div
+          class="metric-card"
+          style="
+            --card-accent: var(--success);
+            --card-accent-glow: var(--success-glow);
+          "
+        >
+          <div class="metric-info">
+            <div class="metric-title">Log Events</div>
+            <div
+              class="metric-value"
+              id="stat-logs"
+              style="color: var(--success)"
+            >
+              --
             </div>
           </div>
-          <div class="form-group">
-            <label>Short Description (Body)</label>
-            <textarea id="p-text" required placeholder="Describe the announcement details..." rows="3"></textarea>
-            <div class="magic-words">
-              <span class="magic-label">✨ Magic words:</span>
-              <span class="magic-chip" onclick="insertMagicWord('p-text','{username}')"><b>{username}</b></span>
-              <span class="magic-chip" onclick="insertMagicWord('p-text','{firstname}')"><b>{firstname}</b></span>
-              <span class="magic-chip" onclick="insertMagicWord('p-text','{email}')"><b>{email}</b></span>
+          <div class="card-icon-container">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="4 17 10 11 4 5"></polyline>
+              <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+          </div>
+        </div>
+        <!-- Card 4: Active Popups -->
+        <div
+          class="metric-card"
+          style="
+            --card-accent: var(--warning);
+            --card-accent-glow: var(--warning-glow);
+          "
+        >
+          <div class="metric-info">
+            <div class="metric-title">Active Announcements</div>
+            <div
+              class="metric-value"
+              id="stat-announcements"
+              style="color: var(--warning)"
+            >
+              --
             </div>
           </div>
-
-          <!-- Display Style Selector -->
-          <div class="form-group" style="margin-bottom: 18px;">
-            <label style="font-weight: 700;">📐 Display Style</label>
-            <select id="p-display-style" onchange="toggleDisplayStyle(this.value)" style="width:100%; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text); font-size: 14px; font-weight: 600; cursor: pointer; appearance: auto;">
-              <option value="modal">🪟 Modal Popup (full card with image & buttons)</option>
-              <option value="alert">🔔 Native Alert Popup (system-style dialog)</option>
-            </select>
-            <p style="margin: 6px 0 0; font-size: 12px; color: var(--text-muted);">Modal shows a rich in-app card. Alert shows a compact native OS dialog with action buttons.</p>
+          <div class="card-icon-container">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
           </div>
+        </div>
+      </div>
 
-          <!-- Alert buttons config (shown only when displayStyle = alert) -->
-          <div class="form-group" id="alert-buttons-config" style="display:none; padding: 14px; border-radius: 12px; border: 1.5px solid var(--primary); background: var(--primary-glow, rgba(79,70,229,0.06));">
-            <label style="font-weight: 700; margin-bottom: 10px; display: block;">🔘 Alert Buttons</label>
-            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">Define the buttons shown in the native alert. First button is the primary action, last is typically cancel.</p>
-            <div id="alert-buttons-list">
-              <div class="alert-btn-row" style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
-                <input type="text" class="ab-label" placeholder="Button label (e.g. Update Now)" style="flex:2; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;" value="Update Now">
-                <select class="ab-style" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;">
-                  <option value="default">Default</option>
-                  <option value="cancel">Cancel</option>
-                  <option value="destructive">Destructive</option>
-                </select>
-                <button type="button" onclick="this.closest('.alert-btn-row').remove()" style="background:none;border:none;color:var(--danger,#ef4444);cursor:pointer;font-size:18px;padding:0 4px;">×</button>
+      <!-- Terminal Frame -->
+      <div class="main-content">
+        <div class="terminal-container">
+          <div class="terminal-header">
+            <div class="terminal-left">
+              <div class="window-dots">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
               </div>
-              <div class="alert-btn-row" style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
-                <input type="text" class="ab-label" placeholder="Button label (e.g. Later)" style="flex:2; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;" value="Later">
-                <select class="ab-style" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;">
-                  <option value="default">Default</option>
-                  <option value="cancel" selected>Cancel</option>
-                  <option value="destructive">Destructive</option>
-                </select>
-                <button type="button" onclick="this.closest('.alert-btn-row').remove()" style="background:none;border:none;color:var(--danger,#ef4444);cursor:pointer;font-size:18px;padding:0 4px;">×</button>
+              <div class="terminal-title">bash - unified-app-stream.log</div>
+              <div class="log-counter-badge" id="log-counter">0 events</div>
+            </div>
+            <div class="terminal-right">
+              <!-- Smart Search Bar -->
+              <div class="search-box">
+                <svg
+                  class="search-icon"
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                  type="text"
+                  id="log-search"
+                  placeholder="Smart Search logs..."
+                  oninput="handleSearchInput()"
+                />
+                <span
+                  class="search-clear"
+                  id="search-clear-btn"
+                  onclick="clearSearch()"
+                  >&times;</span
+                >
               </div>
+              <!-- Clear Button -->
+              <button
+                class="clear-btn"
+                id="clear-logs-btn"
+                onclick="clearLogs()"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+                <span>Clear Console</span>
+              </button>
             </div>
-            <button type="button" onclick="addAlertButton()" style="background:none; color:var(--accent); border:none; cursor:pointer; font-size:13px; font-weight:500;">+ Add Button</button>
           </div>
-
-          <div class="form-group" id="p-image-container">
-            <label>Upload Banner Image</label>
-            <input type="file" id="p-image" accept="image/*">
+          <!-- Terminal Body -->
+          <div class="terminal" id="terminal">
+            <div class="system-status">
+              [System] Connection established. Listening for active events from
+              web clients and mobile app modules...
+            </div>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <!-- Modal-only config (hidden when displayStyle = alert) -->
-          <div id="modal-only-config">
-            <div class="checkbox-group">
-              <input type="checkbox" id="p-important">
-              <label for="p-important">Flag as Important (Non-dismissible by 'X')</label>
+    <!-- Updates View -->
+    <div id="updates-view" class="view-section">
+      <div class="updates-layout">
+        <!-- Create Popup Form -->
+        <div class="form-panel">
+          <h2>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--primary)"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+              ></path>
+              <path
+                d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+              ></path>
+            </svg>
+            Create App Announcer Popup
+          </h2>
+          <form id="popup-form">
+            <div class="form-group">
+              <label>Title</label>
+              <input
+                type="text"
+                id="p-title"
+                required
+                placeholder="e.g. New Feature Alert!"
+              />
+            </div>
+            <div class="form-group">
+              <label>Subtopic</label>
+              <input
+                type="text"
+                id="p-subtopic"
+                placeholder="e.g. Live Translation Upgrades"
+              />
+            </div>
+            <div class="form-group">
+              <label>Short Description (Body)</label>
+              <textarea
+                id="p-text"
+                required
+                placeholder="Describe the announcement details..."
+                rows="3"
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label>Upload Banner Image</label>
+              <input type="file" id="p-image" accept="image/*" />
             </div>
 
             <div class="checkbox-group">
-              <input type="checkbox" id="p-app-update" onchange="document.getElementById('p-target-version-container').style.display = this.checked ? 'block' : 'none'">
-              <label for="p-app-update">Mandatory App Update Alert (Enforces Target Version)</label>
-            </div>
-
-            <div class="form-group" id="p-target-version-container" style="display:none; padding-left: 10px; border-left: 2px solid var(--primary);">
-              <label>Target Latest Version (Users below this version will see the pop-up)</label>
-              <input type="text" id="p-target-version" placeholder="e.g. 1.2.2">
+              <input type="checkbox" id="p-important" />
+              <label for="p-important"
+                >Flag as Important (Non-dismissible by 'X')</label
+              >
             </div>
 
             <div class="checkbox-group">
-              <input type="checkbox" id="p-interactive" onchange="toggleInteractiveMode(this.checked)">
-              <label for="p-interactive" style="color: var(--accent);">Create Feedback Form (Interactive Survey)</label>
+              <input
+                type="checkbox"
+                id="p-app-update"
+                onchange="
+                  document.getElementById(
+                    'p-target-version-container',
+                  ).style.display = this.checked ? 'block' : 'none'
+                "
+              />
+              <label for="p-app-update"
+                >Mandatory App Update Alert (Enforces Target Version)</label
+              >
+            </div>
+
+            <div
+              class="form-group"
+              id="p-target-version-container"
+              style="
+                display: none;
+                padding-left: 10px;
+                border-left: 2px solid var(--primary);
+              "
+            >
+              <label
+                >Target Latest Version (Users below this version will see the
+                pop-up)</label
+              >
+              <input
+                type="text"
+                id="p-target-version"
+                placeholder="e.g. 1.2.2"
+              />
+            </div>
+
+            <div class="checkbox-group">
+              <input
+                type="checkbox"
+                id="p-interactive"
+                onchange="toggleInteractiveMode(this.checked)"
+              />
+              <label for="p-interactive" style="color: var(--accent)"
+                >Create Feedback Form (Interactive Survey)</label
+              >
             </div>
 
             <!-- Interactive fields configuration -->
             <div class="interactive-config" id="interactive-config">
               <div class="form-group">
                 <label>Submit Button Text</label>
-                <input type="text" id="p-submit-text" placeholder="e.g. Submit Survey" value="Submit">
+                <input
+                  type="text"
+                  id="p-submit-text"
+                  placeholder="e.g. Submit Survey"
+                  value="Submit"
+                />
               </div>
-              <label style="color: var(--text); font-weight: 600; margin-bottom: 10px; display: block;">Form Fields</label>
+              <label
+                style="
+                  color: var(--text);
+                  font-weight: 600;
+                  margin-bottom: 10px;
+                  display: block;
+                "
+                >Form Fields</label
+              >
               <div id="form-fields-list"></div>
-              <button type="button" style="background:none; color:var(--accent); border:none; cursor:pointer; font-size:13px; font-weight: 500;" onclick="addFormField()">+ Add Input Field</button>
+              <button
+                type="button"
+                style="
+                  background: none;
+                  color: var(--accent);
+                  border: none;
+                  cursor: pointer;
+                  font-size: 13px;
+                  font-weight: 500;
+                "
+                onclick="addFormField()"
+              >
+                + Add Input Field
+              </button>
             </div>
 
             <!-- Actions button configuration -->
             <div class="actions-config" id="actions-config">
-              <label style="color: var(--text); font-weight: 600; margin-bottom: 10px; display: block;">Call to Action Buttons (Redirect URL)</label>
+              <label
+                style="
+                  color: var(--text);
+                  font-weight: 600;
+                  margin-bottom: 10px;
+                  display: block;
+                "
+                >Call to Action Buttons (Redirect URL)</label
+              >
               <div id="actions-list">
                 <div class="action-row">
-                  <input type="text" placeholder="Button Name (e.g. Try Now)" class="a-label">
-                  <input type="url" placeholder="Redirect Link (https://...)" class="a-url">
+                  <input
+                    type="text"
+                    placeholder="Button Name (e.g. Try Now)"
+                    class="a-label"
+                  />
+                  <input
+                    type="url"
+                    placeholder="Redirect Link (https://...)"
+                    class="a-url"
+                  />
                 </div>
               </div>
-              <button type="button" style="background:none; color:var(--accent); border:none; cursor:pointer; font-size:13px; font-weight: 500;" onclick="addActionRow()">+ Add Redirect Button</button>
-            </div>
-          </div>
-
-          <button type="submit" class="btn" id="submit-popup-btn" style="margin-top: 10px; width: 100%;">Publish Announcement</button>
-        </form>
-      </div>
-
-      <!-- Feed Panel -->
-      <div class="feed-panel">
-        <h2>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-            <polyline points="22,6 12,13 2,6"></polyline>
-          </svg>
-          Previous Announcements Feed
-        </h2>
-        <div id="popups-feed">
-          <div style="color: var(--text-muted); text-align: center; padding: 20px;">Fetching active feed...</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Users View -->
-  <div id="users-view" class="view-section">
-    <div class="main-content" style="padding-top: 24px;">
-      <div class="terminal-container">
-        <div class="terminal-header">
-          <div class="terminal-left">
-            <div class="window-dots">
-              <div class="dot red"></div>
-              <div class="dot yellow"></div>
-              <div class="dot green"></div>
-            </div>
-            <div class="terminal-title">Users Directory</div>
-            <div class="log-counter-badge" id="users-counter">0 users</div>
-          </div>
-          <div class="terminal-right">
-            <!-- Users Smart Search Bar -->
-            <div class="search-box">
-              <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <input type="text" id="users-search" placeholder="Search users by name, email..." oninput="handleUsersSearchInput()">
-              <span class="search-clear" id="users-search-clear-btn" onclick="clearUsersSearch()">&times;</span>
-            </div>
-          </div>
-        </div>
-        <!-- Users Card Grid -->
-        <div class="users-grid" id="users-grid">
-          <div style="color:var(--text-muted); text-align:center; padding:30px; grid-column: 1/-1;">Loading users directory...</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Notifications View -->
-  <div id="notifications-view" class="view-section">
-    <div class="main-content" style="padding-top: 24px;">
-      <div class="notifications-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-        
-        <!-- System Notification Form -->
-        <div class="terminal-container" style="padding: 24px;">
-          <div class="terminal-header" style="margin: -24px -24px 20px -24px;">
-            <div class="terminal-left">
-              <div class="window-dots">
-                <div class="dot red"></div>
-                <div class="dot yellow"></div>
-                <div class="dot green"></div>
-              </div>
-              <div class="terminal-title">System Alert Campaign</div>
-            </div>
-          </div>
-          <form id="system-notif-form" onsubmit="sendSystemNotification(event)">
-            <div class="form-group">
-              <label>Alert Title</label>
-              <input type="text" id="sys-title" required placeholder="e.g. Hello {username}, check this out!">
-              <div class="magic-words">
-                <span class="magic-label">✨ Magic words:</span>
-                <span class="magic-chip" onclick="insertMagicWord('sys-title','{username}')"><b>{username}</b></span>
-                <span class="magic-chip" onclick="insertMagicWord('sys-title','{firstname}')"><b>{firstname}</b></span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Alert Body Message</label>
-              <textarea id="sys-body" required placeholder="e.g. Hello {username}, a new update is ready for you!" rows="4"></textarea>
-              <div class="magic-words">
-                <span class="magic-label">✨ Magic words:</span>
-                <span class="magic-chip" onclick="insertMagicWord('sys-body','{username}')"><b>{username}</b></span>
-                <span class="magic-chip" onclick="insertMagicWord('sys-body','{firstname}')"><b>{firstname}</b></span>
-                <span class="magic-chip" onclick="insertMagicWord('sys-body','{email}')"><b>{email}</b></span>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Alert Icon Style</label>
-              <select id="sys-icon" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 10px; width: 100%; height: auto;">
-                <option value="default" style="background:#0f0a1c;">📢 Default App Logo</option>
-                <option value="info" style="background:#0f0a1c;">ℹ️ Information Badge</option>
-                <option value="success" style="background:#0f0a1c;">✅ Success Checkmark</option>
-                <option value="warning" style="background:#0f0a1c;">⚠️ Warning Alert</option>
-              </select>
-            </div>
-            <div class="form-group" style="margin-top: 16px;">
-              <label>Target Audience</label>
-              <div class="audience-toggle">
-                <button type="button" class="audience-btn active" id="sys-all-btn" onclick="setAudience('sys','all')">🌍 Send to All Users</button>
-                <button type="button" class="audience-btn" id="sys-specific-btn" onclick="setAudience('sys','specific')">👤 Specific User</button>
-              </div>
-              <div class="audience-email-row" id="sys-email-row">
-                <div class="email-target-wrapper">
-                  <span class="email-target-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                  </span>
-                  <input type="email" id="sys-target-email" placeholder="Enter recipient email address...">
-                </div>
-              </div>
-            </div>
-            <button type="submit" class="btn" id="sys-submit-btn" style="margin-top: 20px; width: 100%;">Dispatch System Alert</button>
-          </form>
-        </div>
-
-        <!-- Simulated Chat Notification Form -->
-        <div class="terminal-container" style="padding: 24px;">
-          <div class="terminal-header" style="margin: -24px -24px 20px -24px;">
-            <div class="terminal-left">
-              <div class="window-dots">
-                <div class="dot red"></div>
-                <div class="dot yellow"></div>
-                <div class="dot green"></div>
-              </div>
-              <div class="terminal-title">Simulated Chat Notification</div>
-            </div>
-          </div>
-          <form id="chat-notif-form" onsubmit="sendChatNotification(event)">
-            <div class="form-group">
-              <label>Sender Username</label>
-              <input type="text" id="chat-sender" required placeholder="e.g. Sarah Jenkins">
-            </div>
-            <div class="form-group">
-              <label>Sender Avatar URL</label>
-              <input type="url" id="chat-avatar" placeholder="Paste image link, or leave blank for random avatar">
-              <div style="margin-top: 6px; display: flex; gap: 8px;">
-                <button type="button" class="btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="setPresetAvatar('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100')">Avatar 1</button>
-                <button type="button" class="btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="setPresetAvatar('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100')">Avatar 2</button>
-                <button type="button" class="btn-secondary" style="font-size:11px; padding:4px 8px;" onclick="setPresetAvatar('https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100')">Avatar 3</button>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Simulated Message Body</label>
-              <textarea id="chat-body" required placeholder="e.g. Hey {username}, just wanted to check in!" rows="3"></textarea>
-              <div class="magic-words">
-                <span class="magic-label">✨ Magic words:</span>
-                <span class="magic-chip" onclick="insertMagicWord('chat-body','{username}')"><b>{username}</b></span>
-                <span class="magic-chip" onclick="insertMagicWord('chat-body','{firstname}')"><b>{firstname}</b></span>
-                <span class="magic-chip" onclick="insertMagicWord('chat-body','{email}')"><b>{email}</b></span>
-              </div>
-            </div>
-            <div class="form-group" style="margin-top: 4px;">
-              <label>Target Audience</label>
-              <div class="audience-toggle">
-                <button type="button" class="audience-btn active" id="chat-all-btn" onclick="setAudience('chat','all')">🌍 Send to All Users</button>
-                <button type="button" class="audience-btn" id="chat-specific-btn" onclick="setAudience('chat','specific')">👤 Specific User</button>
-              </div>
-              <div class="audience-email-row" id="chat-email-row">
-                <div class="email-target-wrapper">
-                  <span class="email-target-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                  </span>
-                  <input type="email" id="chat-target-email" placeholder="Enter recipient email address...">
-                </div>
-              </div>
-            </div>
-            <button type="submit" class="btn" id="chat-submit-btn" style="margin-top: 20px; width: 100%; --primary: var(--accent); --primary-glow: var(--accent-glow);">Dispatch Chat Alert</button>
-          </form>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- Settings View -->
-  <div id="settings-view" class="view-section">
-    <div class="main-content" style="padding-top: 24px;">
-      <div class="terminal-container" style="padding: 24px; max-width: 600px; margin: 0 auto;">
-        <div class="terminal-header" style="margin: -24px -24px 20px -24px;">
-          <div class="terminal-left">
-            <div class="window-dots">
-              <div class="dot red"></div>
-              <div class="dot yellow"></div>
-              <div class="dot green"></div>
-            </div>
-            <div class="terminal-title">App Settings</div>
-          </div>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 20px;">
-          <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border);">
-            <div>
-              <h3 style="margin: 0 0 4px 0; font-size: 16px; color: var(--text);">Demo Install Modal</h3>
-              <p style="margin: 0; font-size: 13px; color: var(--text-muted);">Enable/Disable showing the 'You're using a demo' install prompt on Web version.</p>
-            </div>
-            <label class="switch">
-              <input type="checkbox" id="show-demo-toggle" onchange="updateShowDemoSetting(this.checked)">
-              <span class="slider"></span>
-            </label>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- News Feed View -->
-  <div id="news-view" class="view-section">
-    <div class="updates-layout" style="display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 24px; padding: 24px 40px; flex: 1; overflow: hidden;">
-      
-      <!-- Left side: Manual News Publisher Form -->
-      <div class="form-panel" style="background: var(--card-bg); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 16px; padding: 24px; overflow-y: auto;">
-        <h2>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"></path>
-            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-          </svg>
-          Publish Premium News
-        </h2>
-        
-        <form id="news-publish-form" onsubmit="publishNews(event)">
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label>Article Title</label>
-            <input type="text" id="news-title" required placeholder="e.g. Next-Gen Smart Translation Engine Debuts">
-          </div>
-          
-          <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-            <div class="form-group" style="flex: 1;">
-              <label>Category</label>
-              <select id="news-category" style="background: rgba(0,0,0,0.3); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
-                <option value="AI">AI</option>
-                <option value="Android">Android</option>
-                <option value="Cybersecurity">Cybersecurity</option>
-                <option value="Gaming">Gaming</option>
-                <option value="Kenya">Kenya</option>
-                <option value="World">World</option>
-                <option value="Business">Business</option>
-                <option value="Science">Science</option>
-              </select>
-            </div>
-            
-            <div class="form-group" style="flex: 1;">
-              <label>Reading Time</label>
-              <input type="text" id="news-reading-time" placeholder="e.g. 3 min read (leave blank to auto-calc)">
-            </div>
-          </div>
-          
-          <div style="display: flex; gap: 12px; margin-bottom: 12px;">
-            <div class="form-group" style="flex: 1;">
-              <label>Publisher Name</label>
-              <input type="text" id="news-publisher" placeholder="e.g. TechCrunch" value="Admin XayLite">
-            </div>
-            
-            <div class="form-group" style="flex: 1;">
-              <label>Publisher Avatar URL</label>
-              <input type="url" id="news-publisher-avatar" placeholder="https://logo.clearbit.com/...">
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label>Hero Cover Image URL</label>
-            <input type="url" id="news-hero-image" placeholder="https://images.unsplash.com/photo-...">
-          </div>
-
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label>Tags (comma-separated)</label>
-            <input type="text" id="news-tags" placeholder="e.g. AI, Translation, Future, Update">
-          </div>
-
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label>Brief Summary (2-3 sentences)</label>
-            <textarea id="news-summary" rows="2" placeholder="Brief outline of the article..." required></textarea>
-          </div>
-
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label>Full Content Details</label>
-            <textarea id="news-content" rows="6" placeholder="Write full article body paragraphs here..." required></textarea>
-          </div>
-
-          <!-- Promotion badges check -->
-          <div style="display: flex; gap: 16px; margin: 16px 0;">
-            <div class="checkbox-group">
-              <input type="checkbox" id="news-breaking">
-              <label for="news-breaking" style="color: var(--danger);">Breaking News</label>
-            </div>
-            <div class="checkbox-group">
-              <input type="checkbox" id="news-featured">
-              <label for="news-featured" style="color: var(--primary);">Featured Carousel</label>
-            </div>
-            <div class="checkbox-group">
-              <input type="checkbox" id="news-trending">
-              <label for="news-trending" style="color: var(--accent);">Trending Hot Card</label>
-            </div>
-          </div>
-
-          <button type="submit" class="btn" style="width: 100%;">Publish Article</button>
-        </form>
-      </div>
-
-      <!-- Right side: News API stats & Article Feed List -->
-      <div style="display: flex; flex-direction: column; gap: 20px; overflow-y: auto; height: 100%;">
-        
-        <!-- Smart News Dashboard Stats -->
-        <div class="form-panel" style="background: rgba(139, 92, 246, 0.05); border: 1.5px solid var(--border-glow); border-radius: 16px; padding: 20px; flex-shrink: 0;">
-          <h2 style="font-size: 16px; margin-bottom: 12px;">
-            <span style="animation: pulse 2s infinite; display: inline-block; width: 8px; height: 8px; background-color: var(--success); border-radius: 50%; margin-right: 8px;"></span>
-            Smart News Sync Engine
-          </h2>
-          
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; font-size: 13px;">
-            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
-              <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase;">Last API Provider</div>
-              <strong id="api-provider" style="color: var(--accent);">None</strong>
-            </div>
-            <div style="background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
-              <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase;">Fetched Count</div>
-              <strong id="api-fetched-count" style="color: var(--success);">0 articles</strong>
-            </div>
-            <div style="grid-column: span 2; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
-              <div style="color: var(--text-muted); font-size: 10px; text-transform: uppercase;">Last Sync Timestamp</div>
-              <strong id="api-fetch-time" style="color: var(--text);">Never fetched</strong>
-            </div>
-          </div>
-
-          <!-- API fetch trigger panel -->
-          <div style="background: rgba(0, 0, 0, 0.2); padding: 14px; border-radius: 12px; border: 1px solid var(--border);">
-            <div class="form-group" style="margin-bottom: 10px;">
-              <label>Select API Feed Provider</label>
-              <select id="fetch-provider" onchange="toggleApiKeyField(this.value)" style="background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 8px;">
-                <option value="mock">Curated XayLite Feed (Internal Mock)</option>
-                <option value="gnews">GNews API (Global Search Engine)</option>
-              </select>
-            </div>
-            
-            <div class="form-group" id="news-api-key-container" style="display: none; margin-bottom: 12px;">
-              <label>GNews API Key</label>
-              <input type="text" id="news-api-key" placeholder="Enter GNews API Token...">
+              <button
+                type="button"
+                style="
+                  background: none;
+                  color: var(--accent);
+                  border: none;
+                  cursor: pointer;
+                  font-size: 13px;
+                  font-weight: 500;
+                "
+                onclick="addActionRow()"
+              >
+                + Add Redirect Button
+              </button>
             </div>
 
-            <button type="button" class="btn" id="btn-fetch-news" onclick="triggerNewsFetch()" style="width: 100%; height: 38px; padding: 0; font-size: 13px; --primary: var(--accent); --primary-glow: var(--accent-glow);">
-              Sync / Fetch News Feed
+            <button
+              type="submit"
+              class="btn"
+              id="submit-popup-btn"
+              style="margin-top: 10px; width: 100%"
+            >
+              Publish Announcement
             </button>
-          </div>
+          </form>
         </div>
 
-        <!-- Article Feed List -->
-        <div class="feed-panel" style="flex: 1; overflow-y: auto;">
+        <!-- Feed Panel -->
+        <div class="feed-panel">
           <h2>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--accent)"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+              ></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
             </svg>
-            Active News Feed
+            Previous Announcements Feed
           </h2>
-          
-          <div id="news-feed-list" style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="color: var(--text-muted); text-align: center; padding: 20px;">Fetching articles...</div>
+          <div id="popups-feed">
+            <div
+              style="
+                color: var(--text-muted);
+                text-align: center;
+                padding: 20px;
+              "
+            >
+              Fetching active feed...
+            </div>
           </div>
         </div>
-
-      </div>
-
-    </div>
-  </div>
-
-  <!-- Replies Modal -->
-  <div class="modal-overlay" id="replies-modal" onclick="if(event.target===this) this.style.display='none'">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 id="replies-title">User Feedback Replies</h3>
-        <button style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:24px; line-height: 1;" onclick="document.getElementById('replies-modal').style.display='none'">&times;</button>
-      </div>
-      <div class="modal-body" id="replies-body">
-        Loading responses...
       </div>
     </div>
-  </div>
 
-  <script>
-    let allLogs = [];
-    let activeSearchKeyword = '';
-    let allUsers = [];
-    let activeUsersSearchKeyword = '';
+    <!-- Replies Modal -->
+    <div
+      class="modal-overlay"
+      id="replies-modal"
+      onclick="if (event.target === this) this.style.display = 'none';"
+    >
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="replies-title">User Feedback Replies</h3>
+          <button
+            style="
+              background: none;
+              border: none;
+              color: var(--text-muted);
+              cursor: pointer;
+              font-size: 24px;
+              line-height: 1;
+            "
+            onclick="
+              document.getElementById('replies-modal').style.display = 'none'
+            "
+          >
+            &times;
+          </button>
+        </div>
+        <div class="modal-body" id="replies-body">Loading responses...</div>
+      </div>
+    </div>
 
-    function switchTab(tabId) {
-      document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-      document.getElementById(`${tabId}-view`).classList.add('active');
-      
-      if (event && event.target) {
-        event.target.classList.add('active');
-      } else {
-        const btn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(tabId));
-        if (btn) btn.classList.add('active');
+    <script>
+      let allLogs = [];
+      let activeSearchKeyword = "";
+
+      function switchTab(tabId) {
+        document
+          .querySelectorAll(".view-section")
+          .forEach((el) => el.classList.remove("active"));
+        document
+          .querySelectorAll(".tab-btn")
+          .forEach((el) => el.classList.remove("active"));
+        document.getElementById(`${tabId}-view`).classList.add("active");
+        event.target.classList.add("active");
+        if (tabId === "updates") loadPopups();
       }
-      
-      if (tabId === 'updates') loadPopups();
-      if (tabId === 'users') loadUsers();
-      if (tabId === 'settings') loadSettings();
-      if (tabId === 'news') {
-        loadNews();
-        loadNewsStats();
-      }
-    }
 
-    async function loadSettings() {
-      try {
-        const res = await fetch('/api/settings');
-        const data = await res.json();
-        if (data.success) {
-          document.getElementById('show-demo-toggle').checked = data.showDemoPopup;
+      // Fetch metric counts dynamically
+      async function fetchStats() {
+        try {
+          const res = await fetch("/api/admin/stats");
+          const data = await res.json();
+          document.getElementById("stat-registered").innerText =
+            data.totalRegistered;
+          document.getElementById("stat-online").innerText = data.totalOnline;
+          document.getElementById("stat-logs").innerText =
+            data.totalLogs !== undefined ? data.totalLogs : "--";
+          document.getElementById("stat-announcements").innerText =
+            data.totalPopups !== undefined ? data.totalPopups : "--";
+        } catch (err) {
+          console.error("Stats loading failed:", err);
         }
-      } catch (err) {
-        console.error('Failed to load settings:', err);
       }
-    }
 
-    async function updateShowDemoSetting(checked) {
-      try {
-        const res = await fetch('/api/admin/settings', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ showDemoPopup: checked })
+      fetchStats();
+      setInterval(fetchStats, 8000);
+
+      // Format individual log to a clean, formatted single-line element
+      function formatLogEntry(log) {
+        const date = new Date(log.timestamp);
+        // Format to HH:MM:SS
+        const timeStr = date.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
         });
-        const data = await res.json();
-        if (!data.success) {
-          alert('Failed to update setting');
-          document.getElementById('show-demo-toggle').checked = !checked;
+
+        const userStr = log.user || "Anonymous";
+        const eventStr = log.event || "unknown";
+        const platformStr = log.platform || "server";
+
+        let detailsStr = "";
+        if (log.details) {
+          detailsStr =
+            typeof log.details === "object"
+              ? JSON.stringify(log.details)
+              : String(log.details);
+          if (detailsStr === "{}") detailsStr = "";
         }
-      } catch (err) {
-        console.error('Failed to save settings:', err);
-        alert('Failed to save setting');
-        document.getElementById('show-demo-toggle').checked = !checked;
-      }
-    }
 
-    // Fetch metric counts dynamically
-    async function fetchStats() {
-      try {
-        const res = await fetch('/api/admin/stats');
-        const data = await res.json();
-        document.getElementById('stat-registered').innerText = data.totalRegistered;
-        document.getElementById('stat-online').innerText = data.totalOnline;
-        document.getElementById('stat-logs').innerText = data.totalLogs !== undefined ? data.totalLogs : '--';
-        document.getElementById('stat-announcements').innerText = data.totalPopups !== undefined ? data.totalPopups : '--';
-      } catch (err) {
-        console.error('Stats loading failed:', err);
-      }
-    }
-    
-    fetchStats();
-    setInterval(fetchStats, 8000);
+        // Check if this log event is an error
+        const isError =
+          eventStr.toLowerCase().includes("error") ||
+          eventStr.toLowerCase().includes("fail") ||
+          (log.details && log.details.error);
+        const eventClass = isError ? "col-event error-event" : "col-event";
 
-    // Format individual log to a clean, formatted single-line element
-    function formatLogEntry(log) {
-      const date = new Date(log.timestamp);
-      // Format to MM-DD HH:MM:SS
-      const dateStr = date.toLocaleDateString([], { month: '2-digit', day: '2-digit' });
-      const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-      const displayTime = `${dateStr} ${timeStr}`;
-      
-      const userStr = log.user || 'Anonymous';
-      const eventStr = log.event || 'unknown';
-      const platformStr = log.platform || 'server';
-      
-      let detailsStr = '';
-      if (log.details) {
-        detailsStr = typeof log.details === 'object' ? JSON.stringify(log.details) : String(log.details);
-        if (detailsStr === '{}') detailsStr = '';
-      }
+        // Smart Highlight Function Wrapper
+        const hl = (txt) => highlightText(txt, activeSearchKeyword);
 
-      // Check if this log event is an error
-      const isError = eventStr.toLowerCase().includes('error') || eventStr.toLowerCase().includes('fail') || (log.details && log.details.error);
-      const eventClass = isError ? 'col-event error-event' : 'col-event';
-
-      // Smart Highlight Function Wrapper
-      const hl = (txt) => highlightText(txt, activeSearchKeyword);
-
-      // Render the CSS grid columns aligned using | divider cells
-      return `
-        <div class="log-cell col-time" title="ISO: ${log.timestamp}">${displayTime}</div>
+        // Render the CSS grid columns aligned using | divider cells
+        return `
+        <div class="log-cell col-time" title="ISO: ${log.timestamp}">${timeStr}</div>
         <div class="log-divider">|</div>
         <div class="log-cell col-platform">
           <span class="badge badge-${platformStr}">${platformStr}</span>
@@ -1959,138 +1485,160 @@
         <div class="log-divider">|</div>
         <div class="log-cell ${eventClass}" title="${eventStr}">${hl(eventStr)}</div>
         <div class="log-divider">|</div>
-        <div class="log-cell col-details" title="${detailsStr.replace(/"/g, '&quot;')}">${hl(detailsStr)}</div>
+        <div class="log-cell col-details" title="${detailsStr.replace(/"/g, "&quot;")}">${hl(detailsStr)}</div>
       `;
-    }
-
-    // Highlight matches of keyword inside text string
-    function highlightText(text, keyword) {
-      if (!keyword || !text) return text;
-      const escapedKeyword = keyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(`(${escapedKeyword})`, 'gi');
-      return text.replace(regex, '<mark>$1</mark>');
-    }
-
-    // Render current filtered subset of logs to console terminal
-    function renderLogs() {
-      const terminal = document.getElementById('terminal');
-      
-      // Clean previous rendered logs except the status notice
-      terminal.querySelectorAll('.log-row').forEach(row => row.remove());
-      
-      let filteredLogs = allLogs;
-      
-      if (activeSearchKeyword) {
-        const kw = activeSearchKeyword.toLowerCase();
-        filteredLogs = allLogs.filter(log => {
-          const userStr = (log.user || '').toLowerCase();
-          const eventStr = (log.event || '').toLowerCase();
-          const platformStr = (log.platform || '').toLowerCase();
-          
-          let detailsStr = '';
-          if (log.details) {
-            detailsStr = typeof log.details === 'object' ? JSON.stringify(log.details) : String(log.details);
-          }
-          detailsStr = detailsStr.toLowerCase();
-          
-          return userStr.includes(kw) || eventStr.includes(kw) || platformStr.includes(kw) || detailsStr.includes(kw);
-        });
       }
 
-      document.getElementById('log-counter').innerText = `${filteredLogs.length} events`;
+      // Highlight matches of keyword inside text string
+      function highlightText(text, keyword) {
+        if (!keyword || !text) return text;
+        const escapedKeyword = keyword.replace(
+          /[-\/\\^$*+?.()|[\]{}]/g,
+          "\\$&",
+        );
+        const regex = new RegExp(`(${escapedKeyword})`, "gi");
+        return text.replace(regex, "<mark>$1</mark>");
+      }
 
-      filteredLogs.forEach(log => {
-        const row = document.createElement('div');
-        row.className = 'log-row';
-        row.id = `log-row-${log.id}`;
-        row.innerHTML = formatLogEntry(log);
-        terminal.appendChild(row);
-      });
+      // Render current filtered subset of logs to console terminal
+      function renderLogs() {
+        const terminal = document.getElementById("terminal");
 
-      // Maintain scroll position at bottom if search is empty or log is added
-      terminal.scrollTop = terminal.scrollHeight;
-    }
+        // Clean previous rendered logs except the status notice
+        terminal.querySelectorAll(".log-row").forEach((row) => row.remove());
 
-    // Handle search text entry dynamically
-    function handleSearchInput() {
-      const input = document.getElementById('log-search');
-      activeSearchKeyword = input.value.trim();
-      
-      const clearBtn = document.getElementById('search-clear-btn');
-      clearBtn.style.display = activeSearchKeyword ? 'inline' : 'none';
-      
-      renderLogs();
-    }
+        let filteredLogs = allLogs;
 
-    // Clear search keyword and restore full logs display
-    function clearSearch() {
-      const input = document.getElementById('log-search');
-      input.value = '';
-      activeSearchKeyword = '';
-      document.getElementById('search-clear-btn').style.display = 'none';
-      renderLogs();
-    }
+        if (activeSearchKeyword) {
+          const kw = activeSearchKeyword.toLowerCase();
+          filteredLogs = allLogs.filter((log) => {
+            const userStr = (log.user || "").toLowerCase();
+            const eventStr = (log.event || "").toLowerCase();
+            const platformStr = (log.platform || "").toLowerCase();
 
-    // Call server API to delete database and stream logs
-    async function clearLogs() {
-      if (!confirm('Are you sure you want to purge all events and activity logs? This clears the database and terminal streams.')) return;
-      
-      const btn = document.getElementById('clear-logs-btn');
-      const originalText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = '<span>Purging...</span>';
+            let detailsStr = "";
+            if (log.details) {
+              detailsStr =
+                typeof log.details === "object"
+                  ? JSON.stringify(log.details)
+                  : String(log.details);
+            }
+            detailsStr = detailsStr.toLowerCase();
 
-      try {
-        const res = await fetch('/api/admin/logs/clear', { method: 'DELETE' });
-        if (res.ok) {
+            return (
+              userStr.includes(kw) ||
+              eventStr.includes(kw) ||
+              platformStr.includes(kw) ||
+              detailsStr.includes(kw)
+            );
+          });
+        }
+
+        document.getElementById("log-counter").innerText =
+          `${filteredLogs.length} events`;
+
+        filteredLogs.forEach((log) => {
+          const row = document.createElement("div");
+          row.className = "log-row";
+          row.id = `log-row-${log.id}`;
+          row.innerHTML = formatLogEntry(log);
+          terminal.appendChild(row);
+        });
+
+        // Maintain scroll position at bottom if search is empty or log is added
+        terminal.scrollTop = terminal.scrollHeight;
+      }
+
+      // Handle search text entry dynamically
+      function handleSearchInput() {
+        const input = document.getElementById("log-search");
+        activeSearchKeyword = input.value.trim();
+
+        const clearBtn = document.getElementById("search-clear-btn");
+        clearBtn.style.display = activeSearchKeyword ? "inline" : "none";
+
+        renderLogs();
+      }
+
+      // Clear search keyword and restore full logs display
+      function clearSearch() {
+        const input = document.getElementById("log-search");
+        input.value = "";
+        activeSearchKeyword = "";
+        document.getElementById("search-clear-btn").style.display = "none";
+        renderLogs();
+      }
+
+      // Call server API to delete database and stream logs
+      async function clearLogs() {
+        if (
+          !confirm(
+            "Are you sure you want to purge all events and activity logs? This clears the database and terminal streams.",
+          )
+        )
+          return;
+
+        const btn = document.getElementById("clear-logs-btn");
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = "<span>Purging...</span>";
+
+        try {
+          const res = await fetch("/api/admin/logs/clear", {
+            method: "DELETE",
+          });
+          if (res.ok) {
+            allLogs = [];
+            renderLogs();
+            fetchStats();
+          } else {
+            alert("Failed to clear database logs.");
+          }
+        } catch (err) {
+          console.error("Clearing logs failed:", err);
+          alert("API error occurred during log purge.");
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+
+      // SSE Realtime log streaming integration
+      const evtSource = new EventSource("/api/admin/logs/stream");
+
+      evtSource.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+
+        if (data.type === "history") {
+          // Load initial batch of logs from history queue
+          allLogs = data.logs || [];
+          renderLogs();
+        } else if (data.type === "clear") {
+          // Clear log cache on dynamic push
           allLogs = [];
           renderLogs();
-          fetchStats();
         } else {
-          alert('Failed to clear database logs.');
+          // Push incoming single log to stack
+          allLogs.push(data);
+          if (allLogs.length > 600) allLogs.shift(); // Hard limit browser memory
+          renderLogs();
         }
-      } catch (err) {
-        console.error('Clearing logs failed:', err);
-        alert('API error occurred during log purge.');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
+      };
+
+      // Toggle interactive mode variables
+      function toggleInteractiveMode(isInteractive) {
+        document.getElementById("interactive-config").style.display =
+          isInteractive ? "block" : "none";
+        document.getElementById("actions-config").style.display = isInteractive
+          ? "none"
+          : "block";
       }
-    }
 
-    // SSE Realtime log streaming integration
-    const evtSource = new EventSource('/api/admin/logs/stream');
-    
-    evtSource.onmessage = function(event) {
-      const data = JSON.parse(event.data);
-      
-      if (data.type === 'history') {
-        // Load initial batch of logs from history queue
-        allLogs = data.logs || [];
-        renderLogs();
-      } else if (data.type === 'clear') {
-        // Clear log cache on dynamic push
-        allLogs = [];
-        renderLogs();
-      } else {
-        // Push incoming single log to stack
-        allLogs.push(data);
-        if (allLogs.length > 600) allLogs.shift(); // Hard limit browser memory
-        renderLogs();
-      }
-    };
-
-    // Toggle interactive mode variables
-    function toggleInteractiveMode(isInteractive) {
-      document.getElementById('interactive-config').style.display = isInteractive ? 'block' : 'none';
-      document.getElementById('actions-config').style.display = isInteractive ? 'none' : 'block';
-    }
-
-    function addFormField() {
-      const id = Date.now();
-      const row = document.createElement('div');
-      row.className = 'form-field-row';
-      row.innerHTML = `
+      function addFormField() {
+        const id = Date.now();
+        const row = document.createElement("div");
+        row.className = "form-field-row";
+        row.innerHTML = `
         <div class="form-field-controls">
           <select class="f-type" onchange="document.getElementById('options-${id}').style.display = (this.value === 'select' || this.value === 'radio') ? 'block' : 'none'">
             <option value="text">Text Box Input</option>
@@ -2104,741 +1652,220 @@
         </div>
         <input type="text" id="options-${id}" class="f-options" placeholder="Options separated by commas (e.g. Yes, No, Maybe)" style="display:none; margin-top: 8px;">
       `;
-      document.getElementById('form-fields-list').appendChild(row);
-    }
+        document.getElementById("form-fields-list").appendChild(row);
+      }
 
-    function addActionRow() {
-      const row = document.createElement('div');
-      row.className = 'action-row';
-      row.innerHTML = `
+      function addActionRow() {
+        const row = document.createElement("div");
+        row.className = "action-row";
+        row.innerHTML = `
         <input type="text" placeholder="Button Label" class="a-label">
         <input type="url" placeholder="Link Destination" class="a-url">
         <button type="button" class="btn-circle" onclick="this.parentElement.remove()">&times;</button>
       `;
-      document.getElementById('actions-list').appendChild(row);
-    }
+        document.getElementById("actions-list").appendChild(row);
+      }
 
-    function toggleDisplayStyle(style) {
-      const isAlert = style === 'alert';
-      // Show/hide modal-only sections
-      document.getElementById('modal-only-config').style.display = isAlert ? 'none' : 'block';
-      document.getElementById('p-subtopic-container').style.display = isAlert ? 'none' : 'block';
-      document.getElementById('p-image-container').style.display = isAlert ? 'none' : 'block';
-      // Show/hide alert buttons config
-      document.getElementById('alert-buttons-config').style.display = isAlert ? 'block' : 'none';
-    }
+      // Load popups announcements feed
+      async function loadPopups() {
+        try {
+          const res = await fetch("/api/admin/popups");
+          const data = await res.json();
+          const feed = document.getElementById("popups-feed");
+          feed.innerHTML = "";
 
-    function addAlertButton() {
-      const row = document.createElement('div');
-      row.className = 'alert-btn-row';
-      row.style.cssText = 'display:flex; gap:8px; margin-bottom:8px; align-items:center;';
-      row.innerHTML = `
-        <input type="text" class="ab-label" placeholder="Button label" style="flex:2; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;">
-        <select class="ab-style" style="flex:1; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text); font-size:13px;">
-          <option value="default">Default</option>
-          <option value="cancel">Cancel</option>
-          <option value="destructive">Destructive</option>
-        </select>
-        <button type="button" onclick="this.closest('.alert-btn-row').remove()" style="background:none;border:none;color:var(--danger,#ef4444);cursor:pointer;font-size:18px;padding:0 4px;">&times;</button>
-      `;
-      document.getElementById('alert-buttons-list').appendChild(row);
-    }
+          if (!data.popups || !data.popups.length) {
+            feed.innerHTML =
+              '<div style="color:var(--text-muted); text-align:center; padding:30px;">No announcements published yet.</div>';
+            return;
+          }
 
-    // Load popups announcements feed
-    async function loadPopups() {
-      try {
-        const res = await fetch('/api/admin/popups');
-        const data = await res.json();
-        const feed = document.getElementById('popups-feed');
-        feed.innerHTML = '';
-        
-        if (!data.popups || !data.popups.length) {
-          feed.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:30px;">No announcements published yet.</div>';
-          return;
-        }
-        
-        data.popups.forEach(p => {
-          feed.innerHTML += `
+          data.popups.forEach((p) => {
+            feed.innerHTML += `
             <div class="popup-card">
               <div class="popup-header">
                 <div><span class="popup-id">${p.id}</span> <strong style="margin-left: 6px;">${p.title}</strong></div>
                 <button class="btn-danger" onclick="deletePopup('${p.id}')">Delete</button>
               </div>
-              ${p.imageUrl ? `<img src="${p.imageUrl}" class="popup-img">` : ''}
-              <div style="font-size:12px; color:var(--accent); font-weight: 500; margin-top: 4px;">${p.subtopic || ''}</div>
+              ${p.imageUrl ? `<img src="${p.imageUrl}" class="popup-img">` : ""}
+              <div style="font-size:12px; color:var(--accent); font-weight: 500; margin-top: 4px;">${p.subtopic || ""}</div>
               <p style="margin:6px 0; font-size:13px; line-height:1.4; color:#CBD5E1;">${p.text}</p>
               <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;">
-                ${p.isImportant ? '<span style="background:var(--danger-glow); color:var(--danger); font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid rgba(248,113,113,0.1);">★ Crucial</span>' : ''}
-                ${p.isAppUpdate ? `<span style="background:var(--accent-glow); color:var(--accent); font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid rgba(34,211,238,0.1);">🔄 Force: ${p.targetVersion}</span>` : ''}
-                ${p.isInteractive ? `
+                ${p.isImportant ? '<span style="background:var(--danger-glow); color:var(--danger); font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid rgba(248,113,113,0.1);">★ Crucial</span>' : ""}
+                ${p.isAppUpdate ? `<span style="background:var(--accent-glow); color:var(--accent); font-size:10px; padding:2px 6px; border-radius:4px; border:1px solid rgba(34,211,238,0.1);">🔄 Force: ${p.targetVersion}</span>` : ""}
+                ${
+                  p.isInteractive
+                    ? `
                   <button class="btn-secondary" style="height:20px; padding:0 8px; font-size:10px;" onclick="viewReplies('${p.id}', '${p.title.replace(/'/g, "\\'")}')">View Replies</button>
-                ` : ''}
+                `
+                    : ""
+                }
               </div>
               <div style="display:flex; gap:6px; margin-top:6px;">
-                ${p.actions.map(a => `<span style="background:var(--primary-glow); color:var(--primary); padding:2px 8px; border-radius:4px; font-size:10px; border:1px solid rgba(167,139,250,0.15);">${a.label}</span>`).join('')}
+                ${p.actions.map((a) => `<span style="background:var(--primary-glow); color:var(--primary); padding:2px 8px; border-radius:4px; font-size:10px; border:1px solid rgba(167,139,250,0.15);">${a.label}</span>`).join("")}
               </div>
             </div>
           `;
-        });
-      } catch (err) {
-        console.error('Failed to load announcements:', err);
+          });
+        } catch (err) {
+          console.error("Failed to load announcements:", err);
+        }
       }
-    }
 
-    async function deletePopup(id) {
-      if(!confirm('Are you sure you want to delete this announcement?')) return;
-      await fetch(`/api/admin/popups/${id}`, { method: 'DELETE' });
-      loadPopups();
-      fetchStats();
-    }
-
-    async function loadNews() {
-      const feed = document.getElementById('news-feed-list');
-      feed.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Fetching articles...</div>';
-      
-      try {
-        const res = await fetch('/api/news');
-        const data = await res.json();
-        feed.innerHTML = '';
-
-        if (!data.news || !data.news.length) {
-          feed.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:30px;">No news articles published yet.</div>';
+      async function deletePopup(id) {
+        if (!confirm("Are you sure you want to delete this announcement?"))
           return;
-        }
-
-        data.news.forEach(art => {
-          const joinedTags = (art.tags || []).join(', ');
-          feed.innerHTML += `
-            <div class="popup-card" style="padding: 16px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
-              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                <div style="flex: 1; padding-right: 10px;">
-                  <strong style="font-size: 14px; color: var(--text);">${art.title}</strong>
-                  <div style="font-size: 11px; color: var(--accent); margin-top: 2px;">
-                    Category: <strong>${art.category}</strong> | Reading: <strong>${art.readingTime}</strong>
-                  </div>
-                </div>
-                <button class="btn-danger" style="padding: 4px 10px; font-size: 11px;" onclick="deleteNews('${art.id}')">Delete</button>
-              </div>
-              
-              <div style="display: flex; gap: 10px; align-items: center; margin-top: 4px;">
-                ${art.publisherAvatar ? `<img src="${art.publisherAvatar}" style="width: 20px; height: 20px; border-radius: 50%;">` : ''}
-                <span style="font-size: 11px; color: var(--text-muted);">Published by <strong>${art.publisher}</strong></span>
-              </div>
-
-              ${art.heroImage ? `<img src="${art.heroImage}" style="width: 100%; height: 110px; object-fit: cover; border-radius: 8px; border: 1px solid var(--border);">` : ''}
-              
-              <p style="margin: 4px 0; font-size: 12px; color: #CBD5E1; line-height: 1.4;">${art.summary}</p>
-              
-              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
-                ${art.breaking ? '<span style="background:var(--danger-glow); color:var(--danger); font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(248,113,113,0.1);">★ Breaking</span>' : ''}
-                ${art.featured ? '<span style="background:var(--primary-glow); color:var(--primary); font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(167,139,250,0.15);">★ Featured</span>' : ''}
-                ${art.trending ? '<span style="background:var(--accent-glow); color:var(--accent); font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(34,211,238,0.15);">🔥 Trending</span>' : ''}
-                ${joinedTags ? `<span style="background: rgba(255,255,255,0.03); color: var(--text-muted); font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border);">Tags: ${joinedTags}</span>` : ''}
-              </div>
-            </div>
-          `;
-        });
-      } catch (err) {
-        console.error('Failed to load news articles:', err);
-        feed.innerHTML = '<div style="color:var(--danger); text-align:center; padding:20px;">Failed to retrieve news feed.</div>';
+        await fetch(`/api/admin/popups/${id}`, { method: "DELETE" });
+        loadPopups();
+        fetchStats();
       }
-    }
 
-    async function publishNews(e) {
-      e.preventDefault();
-      const title = document.getElementById('news-title').value;
-      const category = document.getElementById('news-category').value;
-      const readingTime = document.getElementById('news-reading-time').value;
-      const publisher = document.getElementById('news-publisher').value;
-      const publisherAvatar = document.getElementById('news-publisher-avatar').value;
-      const heroImage = document.getElementById('news-hero-image').value;
-      const tags = document.getElementById('news-tags').value;
-      const summary = document.getElementById('news-summary').value;
-      const content = document.getElementById('news-content').value;
-      const breaking = document.getElementById('news-breaking').checked;
-      const featured = document.getElementById('news-featured').checked;
-      const trending = document.getElementById('news-trending').checked;
+      document
+        .getElementById("popup-form")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const btn = document.getElementById("submit-popup-btn");
+          btn.innerText = "Publishing...";
+          btn.disabled = true;
 
-      try {
-        const res = await fetch('/api/news', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            title,
-            category,
-            readingTime,
-            publisher,
-            publisherAvatar,
-            heroImage,
-            tags,
-            summary,
-            fullContent: content,
-            breaking,
-            featured,
-            trending
-          })
-        });
+          const actions = [];
+          document.querySelectorAll(".action-row").forEach((row) => {
+            const label = row.querySelector(".a-label").value;
+            const url = row.querySelector(".a-url").value;
+            if (label) actions.push({ label, url });
+          });
 
-        if (res.ok) {
-          document.getElementById('news-publish-form').reset();
-          alert('News article published successfully!');
-          loadNews();
-        } else {
-          alert('Failed to publish news article');
-        }
-      } catch (err) {
-        console.error('Error publishing news:', err);
-        alert('Error publishing news article');
-      }
-    }
-
-    async function deleteNews(id) {
-      if (!confirm('Are you sure you want to delete this news article?')) return;
-      try {
-        const res = await fetch(`/api/news/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-          loadNews();
-        } else {
-          alert('Failed to delete news article');
-        }
-      } catch (err) {
-        console.error('Error deleting news:', err);
-      }
-    }
-
-    async function loadNewsStats() {
-      try {
-        const res = await fetch('/api/admin/news/stats');
-        const data = await res.json();
-        if (data.success && data.stats) {
-          document.getElementById('api-provider').innerText = data.stats.lastFetchProvider || 'None';
-          document.getElementById('api-fetched-count').innerText = `${data.stats.lastFetchCount || 0} articles`;
-          document.getElementById('api-fetch-time').innerText = data.stats.lastFetchTime || 'Never fetched';
-        }
-      } catch (err) {
-        console.error('Failed to load news stats:', err);
-      }
-    }
-
-    function toggleApiKeyField(val) {
-      const container = document.getElementById('news-api-key-container');
-      container.style.display = val === 'gnews' ? 'block' : 'none';
-    }
-
-    async function triggerNewsFetch() {
-      const provider = document.getElementById('fetch-provider').value;
-      const apiKey = document.getElementById('news-api-key').value;
-      const btn = document.getElementById('btn-fetch-news');
-      
-      const originalText = btn.innerText;
-      btn.innerText = 'Syncing...';
-      btn.disabled = true;
-
-      try {
-        const res = await fetch('/api/admin/news/fetch', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ provider, apiKey })
-        });
-        const data = await res.json();
-        
-        if (res.ok) {
-          alert(`Successfully synced! Fetched: ${data.fetched}, Saved: ${data.saved} new articles.`);
-          loadNews();
-          loadNewsStats();
-        } else {
-          alert(`Sync failed: ${data.error || 'Unknown error'}`);
-        }
-      } catch (err) {
-        console.error('Failed to sync news:', err);
-        alert('API error occurred during sync');
-      } finally {
-        btn.innerText = originalText;
-        btn.disabled = false;
-      }
-    }
-
-    document.getElementById('popup-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('submit-popup-btn');
-      btn.innerText = 'Publishing...';
-      btn.disabled = true;
-
-      const actions = [];
-      document.querySelectorAll('.action-row').forEach(row => {
-        const label = row.querySelector('.a-label').value;
-        const url = row.querySelector('.a-url').value;
-        if (label) actions.push({ label, url });
-      });
-
-      const formFields = [];
-      if (document.getElementById('p-interactive').checked) {
-        document.querySelectorAll('.form-field-row').forEach(row => {
-          const type = row.querySelector('.f-type').value;
-          const label = row.querySelector('.f-label').value;
-          const options = row.querySelector('.f-options').value;
-          const required = row.querySelector('.f-required').checked;
-          if (label) {
-            formFields.push({ type, label, required, options: options.split(',').map(o=>o.trim()).filter(o=>o) });
+          const formFields = [];
+          if (document.getElementById("p-interactive").checked) {
+            document.querySelectorAll(".form-field-row").forEach((row) => {
+              const type = row.querySelector(".f-type").value;
+              const label = row.querySelector(".f-label").value;
+              const options = row.querySelector(".f-options").value;
+              const required = row.querySelector(".f-required").checked;
+              if (label) {
+                formFields.push({
+                  type,
+                  label,
+                  required,
+                  options: options
+                    .split(",")
+                    .map((o) => o.trim())
+                    .filter((o) => o),
+                });
+              }
+            });
           }
-        });
-      }
 
-      const formData = new FormData();
-      const displayStyle = document.getElementById('p-display-style').value;
-      formData.append('title', document.getElementById('p-title').value);
-      formData.append('subtopic', document.getElementById('p-subtopic').value);
-      formData.append('text', document.getElementById('p-text').value);
-      formData.append('displayStyle', displayStyle);
-      formData.append('isImportant', document.getElementById('p-important').checked);
-      formData.append('isAppUpdate', document.getElementById('p-app-update').checked);
-      formData.append('targetVersion', document.getElementById('p-target-version').value);
-      formData.append('isInteractive', document.getElementById('p-interactive').checked);
-      formData.append('submitBtnText', document.getElementById('p-submit-text').value);
-      formData.append('formFields', JSON.stringify(formFields));
-      formData.append('actions', JSON.stringify(actions));
+          const formData = new FormData();
+          formData.append("title", document.getElementById("p-title").value);
+          formData.append(
+            "subtopic",
+            document.getElementById("p-subtopic").value,
+          );
+          formData.append("text", document.getElementById("p-text").value);
+          formData.append(
+            "isImportant",
+            document.getElementById("p-important").checked,
+          );
+          formData.append(
+            "isAppUpdate",
+            document.getElementById("p-app-update").checked,
+          );
+          formData.append(
+            "targetVersion",
+            document.getElementById("p-target-version").value,
+          );
+          formData.append(
+            "isInteractive",
+            document.getElementById("p-interactive").checked,
+          );
+          formData.append(
+            "submitBtnText",
+            document.getElementById("p-submit-text").value,
+          );
+          formData.append("formFields", JSON.stringify(formFields));
+          formData.append("actions", JSON.stringify(actions));
 
-      // Collect alert buttons if in alert mode
-      const alertButtons = [];
-      document.querySelectorAll('.alert-btn-row').forEach(row => {
-        const label = row.querySelector('.ab-label').value.trim();
-        const style = row.querySelector('.ab-style').value;
-        if (label) alertButtons.push({ label, style });
-      });
-      formData.append('alertButtons', JSON.stringify(alertButtons));
+          const fileInput = document.getElementById("p-image");
+          if (fileInput.files.length > 0) {
+            formData.append("image", fileInput.files[0]);
+          }
 
-      const fileInput = document.getElementById('p-image');
-      if (fileInput.files.length > 0) {
-        formData.append('image', fileInput.files[0]);
-      }
-
-      try {
-        const res = await fetch('/api/admin/popups', {
-          method: 'POST',
-          body: formData
-        });
-        if (res.ok) {
-          e.target.reset();
-          document.getElementById('p-display-style').value = 'modal';
-          toggleDisplayStyle('modal');
-          document.getElementById('actions-list').innerHTML = `
+          try {
+            const res = await fetch("/api/admin/popups", {
+              method: "POST",
+              body: formData,
+            });
+            if (res.ok) {
+              e.target.reset();
+              document.getElementById("actions-list").innerHTML = `
             <div class="action-row">
               <input type="text" placeholder="Button Name (e.g. Try Now)" class="a-label">
               <input type="url" placeholder="Redirect Link (https://...)" class="a-url">
             </div>
           `;
-          document.getElementById('form-fields-list').innerHTML = '';
-          toggleInteractiveMode(false);
-          loadPopups();
-          fetchStats();
-          alert('Popup announcement published successfully!');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Failed to publish announcement');
-      } finally {
-        btn.innerText = 'Publish Announcement';
-        btn.disabled = false;
-      }
-    });
+              document.getElementById("form-fields-list").innerHTML = "";
+              toggleInteractiveMode(false);
+              loadPopups();
+              fetchStats();
+              alert("Popup announcement published successfully!");
+            }
+          } catch (err) {
+            console.error(err);
+            alert("Failed to publish announcement");
+          } finally {
+            btn.innerText = "Publish Announcement";
+            btn.disabled = false;
+          }
+        });
 
-    async function viewReplies(id, title) {
-      document.getElementById('replies-title').innerText = `Feedback Responses: ${title}`;
-      const body = document.getElementById('replies-body');
-      body.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">Fetching feedback data...</div>';
-      document.getElementById('replies-modal').style.display = 'flex';
+      async function viewReplies(id, title) {
+        document.getElementById("replies-title").innerText =
+          `Feedback Responses: ${title}`;
+        const body = document.getElementById("replies-body");
+        body.innerHTML =
+          '<div style="color:var(--text-muted); text-align:center; padding:20px;">Fetching feedback data...</div>';
+        document.getElementById("replies-modal").style.display = "flex";
 
-      try {
-        const res = await fetch(`/api/admin/popups/${id}/replies`);
-        const data = await res.json();
-        if (!data.replies || !data.replies.length) {
-          body.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:20px;">No replies submitted for this form yet.</div>';
-          return;
-        }
+        try {
+          const res = await fetch(`/api/admin/popups/${id}/replies`);
+          const data = await res.json();
+          if (!data.replies || !data.replies.length) {
+            body.innerHTML =
+              '<div style="color:var(--text-muted); text-align:center; padding:20px;">No replies submitted for this form yet.</div>';
+            return;
+          }
 
-        body.innerHTML = data.replies.map(r => `
+          body.innerHTML = data.replies
+            .map(
+              (r) => `
           <div class="reply-card">
             <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid rgba(255,255,255,0.03); padding-bottom:6px;">
               <strong style="color:var(--accent);">${r.userName}</strong>
               <span style="color:var(--text-muted); font-size:11px;">v${r.appVersion}</span>
             </div>
-            ${Object.entries(r.replyData || {}).map(([key, val]) => `
+            ${Object.entries(r.replyData || {})
+              .map(
+                ([key, val]) => `
               <div style="margin-bottom:8px;">
                 <span style="color:var(--text-muted); font-size:12px; font-weight:500;">${key}:</span>
                 <div style="color:var(--text); font-size:13px; margin-top:2px;">${val}</div>
               </div>
-            `).join('')}
+            `,
+              )
+              .join("")}
             <div style="text-align:right; font-size:10px; color:rgba(255,255,255,0.15); margin-top:10px;">
               ${new Date(r.createdAt).toLocaleString()}
             </div>
           </div>
-        `).join('');
-      } catch (err) {
-        body.innerHTML = '<div style="color:var(--danger); text-align:center; padding:20px;">Failed to retrieve replies.</div>';
-      }
-    }
-
-    // --- Users Directory APIs and UI Handlers ---
-
-    async function loadUsers() {
-      const grid = document.getElementById('users-grid');
-      grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px; grid-column: 1/-1;">Loading users directory...</div>';
-      
-      try {
-        const res = await fetch('/api/admin/users');
-        const data = await res.json();
-        if (res.ok) {
-          allUsers = data.users || [];
-          renderUsers();
-        } else {
-          grid.innerHTML = '<div style="color:var(--danger); text-align:center; padding:40px; grid-column: 1/-1;">Failed to load user directory.</div>';
+        `,
+            )
+            .join("");
+        } catch (err) {
+          body.innerHTML =
+            '<div style="color:var(--danger); text-align:center; padding:20px;">Failed to retrieve replies.</div>';
         }
-      } catch (err) {
-        console.error(err);
-        grid.innerHTML = '<div style="color:var(--danger); text-align:center; padding:40px; grid-column: 1/-1;">Connection error loading directory.</div>';
       }
-    }
-
-    function renderUsers() {
-      const grid = document.getElementById('users-grid');
-      grid.innerHTML = '';
-      
-      let filteredUsers = allUsers;
-      if (activeUsersSearchKeyword) {
-        const kw = activeUsersSearchKeyword.toLowerCase();
-        filteredUsers = allUsers.filter(u => {
-          return (u.name || '').toLowerCase().includes(kw) || 
-                 (u.email || '').toLowerCase().includes(kw) || 
-                 (u.location || '').toLowerCase().includes(kw);
-        });
-      }
-      
-      document.getElementById('users-counter').innerText = `${filteredUsers.length} user${filteredUsers.length !== 1 ? 's' : ''}`;
-      
-      if (filteredUsers.length === 0) {
-        grid.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:40px; grid-column: 1/-1;">No users matching search query.</div>';
-        return;
-      }
-      
-      filteredUsers.forEach(u => {
-        const card = document.createElement('div');
-        card.className = 'user-card';
-        card.id = `user-card-${u.uid}`;
-        
-        // Handle avatar fallback
-        const avatarSrc = u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80';
-        
-        // Format joined date
-        const joinedDate = new Date(u.createdAt).toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
-        
-        // Determine authentication badge class & label
-        let authBadgeClass = 'auth-email';
-        let authLabel = 'Email';
-        if (u.authMethod === 'google' || u.authMethod === 'google_mock') {
-          authBadgeClass = 'auth-google';
-          authLabel = 'Google';
-        } else if (u.authMethod === 'apple') {
-          authBadgeClass = 'auth-apple';
-          authLabel = 'Apple';
-        }
-        
-        // Form the HTML content for card + accordion details
-        card.innerHTML = `
-          <div class="user-card-header" onclick="toggleUserCard('${u.uid}')">
-            <img src="${avatarSrc}" class="user-avatar" onerror="this.src='https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&h=150&q=80'">
-            <div class="user-primary-info">
-              <div class="user-name-row">
-                <span class="user-name">${u.name}</span>
-                <span class="user-flag" title="${u.langName}">${u.flag}</span>
-              </div>
-              <div class="user-email-row">
-                <span class="user-email">${u.email}</span>
-                <span class="auth-badge ${authBadgeClass}">${authLabel}</span>
-              </div>
-            </div>
-          </div>
-          <div class="user-card-details">
-            <div class="details-grid">
-              <div class="details-item">
-                <span class="details-label">Date Joined</span>
-                <span class="details-value">${joinedDate}</span>
-              </div>
-              <div class="details-item">
-                <span class="details-label">Location</span>
-                <span class="details-value">${u.location}</span>
-              </div>
-              <div class="details-item">
-                <span class="details-label">App Version</span>
-                <span class="details-value">v${u.appVersion}</span>
-              </div>
-              <div class="details-item">
-                <span class="details-label">Platform</span>
-                <span class="details-value" style="text-transform: capitalize;">${u.platform}</span>
-              </div>
-              <div class="details-bio">
-                <span class="details-label">Bio</span>
-                <div style="margin-top: 4px; line-height: 1.4; font-size:12px;">"${u.bio}"</div>
-              </div>
-            </div>
-            <div class="user-actions-row">
-              <button class="delete-user-btn" onclick="deleteUser('${u.uid}', '${u.name.replace(/'/g, "\\'")}')"
-                title="Permanently delete this user and all their data">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
-                  <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-                </svg>
-                Delete User
-              </button>
-            </div>
-          </div>
-        `;
-        grid.appendChild(card);
-      });
-    }
-
-    function toggleUserCard(uid) {
-      const card = document.getElementById(`user-card-${uid}`);
-      const isExpanded = card.classList.contains('expanded');
-      
-      // Collapse all user cards
-      document.querySelectorAll('.user-card').forEach(c => {
-        c.classList.remove('expanded');
-      });
-      
-      // Expand target card if it wasn't already expanded
-      if (!isExpanded) {
-        card.classList.add('expanded');
-      }
-    }
-
-    async function deleteUser(uid, name) {
-      if (!confirm(`Are you absolutely sure you want to permanently delete user "${name}"?\n\nThis will completely wipe their profile, chat messages, popup replies, and activity logs from the database. This action is irreversible.`)) {
-        return;
-      }
-      
-      try {
-        const response = await fetch(`/api/admin/users/${encodeURIComponent(uid)}`, {
-          method: 'DELETE'
-        });
-        
-        const result = await response.json();
-        if (response.ok && result.success) {
-          const card = document.getElementById(`user-card-${uid}`);
-          if (card) {
-            card.style.transition = 'all 0.4s ease';
-            card.style.opacity = '0';
-            card.style.transform = 'scale(0.9)';
-            setTimeout(() => {
-              allUsers = allUsers.filter(u => u.uid !== uid);
-              renderUsers();
-            }, 400);
-          } else {
-            allUsers = allUsers.filter(u => u.uid !== uid);
-            renderUsers();
-          }
-        } else {
-          alert(`Error: ${result.error || 'Failed to delete user'}`);
-        }
-      } catch (err) {
-        console.error('Error deleting user:', err);
-        alert('An unexpected error occurred while deleting the user.');
-      }
-    }
-
-    function handleUsersSearchInput() {
-      const input = document.getElementById('users-search');
-      activeUsersSearchKeyword = input.value.trim();
-      
-      const clearBtn = document.getElementById('users-search-clear-btn');
-      clearBtn.style.display = activeUsersSearchKeyword ? 'inline' : 'none';
-      
-      renderUsers();
-    }
-    
-    function clearUsersSearch() {
-      const input = document.getElementById('users-search');
-      input.value = '';
-      activeUsersSearchKeyword = '';
-      document.getElementById('users-search-clear-btn').style.display = 'none';
-      renderUsers();
-    }
-
-    function setPresetAvatar(url) {
-      document.getElementById('chat-avatar').value = url;
-    }
-
-    function insertMagicWord(inputId, word) {
-      const input = document.getElementById(inputId);
-      if (!input) return;
-      const start = input.selectionStart || 0;
-      const end = input.selectionEnd || 0;
-      const text = input.value || '';
-      const before = text.substring(0, start);
-      const after = text.substring(end, text.length);
-      input.value = before + word + after;
-      input.focus();
-      input.selectionStart = input.selectionEnd = start + word.length;
-      // Trigger smart highlight refresh
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-
-    function setAudience(prefix, mode) {
-      const allBtn = document.getElementById(`${prefix}-all-btn`);
-      const specificBtn = document.getElementById(`${prefix}-specific-btn`);
-      const emailRow = document.getElementById(`${prefix}-email-row`);
-      const emailInput = document.getElementById(`${prefix}-target-email`);
-      if (mode === 'all') {
-        allBtn.classList.add('active');
-        specificBtn.classList.remove('active');
-        emailRow.classList.remove('visible');
-        emailInput.removeAttribute('required');
-        emailInput.value = '';
-      } else {
-        specificBtn.classList.add('active');
-        allBtn.classList.remove('active');
-        emailRow.classList.add('visible');
-        emailInput.setAttribute('required', 'required');
-        emailInput.focus();
-      }
-    }
-
-    // ---- Smart Bracket Highlight System ----
-    function highlightBrackets(text) {
-      // Escape HTML, then wrap {word} tokens in highlight spans
-      const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return escaped.replace(/(\{[^}]+\})/g, '<span class="highlight-bracket">$1</span>');
-    }
-
-    function syncBackdrop(input, backdrop) {
-      backdrop.innerHTML = highlightBrackets(input.value) + '\n';
-      // Sync scroll position for textareas
-      backdrop.scrollTop = input.scrollTop;
-    }
-
-    function initSmartHighlights() {
-      // Target all inputs/textareas that have a sibling .magic-words
-      const smartIds = ['sys-title', 'sys-body', 'chat-body', 'p-title', 'p-subtopic', 'p-text'];
-      smartIds.forEach(id => {
-        const input = document.getElementById(id);
-        if (!input || input.dataset.smartInit) return;
-        input.dataset.smartInit = '1';
-
-        const wrapper = document.createElement('div');
-        wrapper.className = 'smart-input-container';
-        input.parentNode.insertBefore(wrapper, input);
-        wrapper.appendChild(input);
-
-        const backdrop = document.createElement('div');
-        backdrop.className = 'smart-input-backdrop';
-        wrapper.insertBefore(backdrop, input);
-
-        // Match backdrop to textarea height if multiline
-        if (input.tagName === 'TEXTAREA') {
-          backdrop.style.whiteSpace = 'pre-wrap';
-          backdrop.style.overflowWrap = 'break-word';
-        } else {
-          backdrop.style.whiteSpace = 'nowrap';
-          backdrop.style.overflow = 'hidden';
-        }
-
-        input.addEventListener('input', () => syncBackdrop(input, backdrop));
-        input.addEventListener('scroll', () => { backdrop.scrollTop = input.scrollTop; });
-        // Initial render
-        syncBackdrop(input, backdrop);
-      });
-    }
-
-    // Initialize highlights after DOM is ready
-    setTimeout(initSmartHighlights, 300);
-    // Also re-init when switching tabs (in case elements weren't visible)
-    const origSwitchTab = switchTab;
-    switchTab = function(tabId) {
-      origSwitchTab(tabId);
-      setTimeout(initSmartHighlights, 100);
-    };
-
-    async function sendSystemNotification(e) {
-      e.preventDefault();
-      const btn = document.getElementById('sys-submit-btn');
-      btn.innerText = 'Dispatching alert...';
-      btn.disabled = true;
-
-      const targetEmail = document.getElementById('sys-target-email').value.trim();
-      const payload = {
-        type: 'system',
-        title: document.getElementById('sys-title').value,
-        body: document.getElementById('sys-body').value,
-        icon: document.getElementById('sys-icon').value,
-        targetEmail
-      };
-
-      try {
-        const res = await fetch('/api/admin/notifications', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          document.getElementById('system-notif-form').reset();
-          setAudience('sys', 'all');
-          // Refresh all backdrops after reset
-          document.querySelectorAll('.smart-input-backdrop').forEach(b => b.innerHTML = '');
-          const label = targetEmail ? `to ${targetEmail}` : 'to all users';
-          alert(`System alert dispatched ${label}!`);
-        } else {
-          alert('Failed to dispatch system alert');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Error dispatching system alert');
-      } finally {
-        btn.innerText = 'Dispatch System Alert';
-        btn.disabled = false;
-      }
-    }
-
-    async function sendChatNotification(e) {
-      e.preventDefault();
-      const btn = document.getElementById('chat-submit-btn');
-      btn.innerText = 'Dispatching message...';
-      btn.disabled = true;
-
-      const targetEmail = document.getElementById('chat-target-email').value.trim();
-      const payload = {
-        type: 'chat',
-        senderName: document.getElementById('chat-sender').value,
-        senderAvatar: document.getElementById('chat-avatar').value,
-        body: document.getElementById('chat-body').value,
-        targetEmail
-      };
-
-      try {
-        const res = await fetch('/api/admin/notifications', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (res.ok) {
-          document.getElementById('chat-notif-form').reset();
-          setAudience('chat', 'all');
-          document.querySelectorAll('.smart-input-backdrop').forEach(b => b.innerHTML = '');
-          const label = targetEmail ? `to ${targetEmail}` : 'to all users';
-          alert(`Chat notification dispatched ${label}!`);
-        } else {
-          alert('Failed to dispatch chat message alert');
-        }
-      } catch (err) {
-        console.error(err);
-        alert('Error dispatching chat message alert');
-      } finally {
-        btn.innerText = 'Dispatch Chat Alert';
-        btn.disabled = false;
-      }
-    }
-  </script>
-</body>
+    </script>
+  </body>
 </html>

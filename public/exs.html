@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      body {
+        background-color: cyan;
+        display: flex;
+        flex-direction: column;
+        width: 100vw;
+        height: 100vh;
+        align-items: center;
+      }
+      #txt {
+        width: 90%;
+        height: 10%;
+      }
+      #send {
+        height: 30px;
+        width: 50%;
+        margin-top: 20px;
+      }
+      #cpybtn {
+        margin-top: 10px;
+      }
+      .btn {
+        background-color: wheat;
+        outline: 1px groove rgb(112, 32, 32);
+        border: none;
+        border-radius: 8px;
+      }
+      .btn:hover {
+        transform: scale(1.1);
+      }
+      #recent {
+        background-color: rgb(230, 191, 191);
+        width: 90vw;
+        height: 30vh;
+        margin-top: 70px;
+        border-radius: 8px;
+        padding: 10px;
+        font-weight: 100;
+        font-style: italic;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <textarea id="txt"></textarea>
+    <button id="send" class="btn">Send</button>
+    <button id="cpybtn" class="btn">Copy</button>
+    <div id="recent">Recent will appear here...</div>
+  </body>
+  <script>
+    let txt = document.getElementById("txt");
+    let send = document.getElementById("send");
+    let cpybtn = document.getElementById("cpybtn");
+    let recent = document.getElementById("recent");
+
+    send.addEventListener("click", () => {
+      fetch("/txt1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: txt.value }),
+      });
+    });
+    cpybtn.addEventListener("click", () => {
+      navigator.clipboard.readText(txt.value).then(() => {
+        cpybtn.innerHTML = "Copied✅";
+        setTimeout(() => {
+          cpybtn.innerHTML = "Copy";
+        }, 3000);
+      });
+    });
+    setInterval(() => {
+      fetch("/txt2", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: "Bring" }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          recent.innerHTML = data.text;
+        });
+    }, 1000);
+  </script>
+</html>
